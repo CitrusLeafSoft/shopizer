@@ -453,7 +453,7 @@ public class ProductController {
 			}
 			newProductPrice.setDescriptions(productPriceDescriptions);
 		}
-		
+
 		newProduct.setMerchantStore(store);
 		
 		if(newProductAvailability==null) {
