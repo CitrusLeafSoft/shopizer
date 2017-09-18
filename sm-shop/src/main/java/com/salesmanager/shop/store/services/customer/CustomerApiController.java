@@ -1,26 +1,17 @@
 package com.salesmanager.shop.store.services.customer;
 
 import com.salesmanager.core.business.services.customer.CustomerService;
-import com.salesmanager.core.business.services.customer.attribute.CustomerOptionService;
-import com.salesmanager.core.business.services.customer.attribute.CustomerOptionValueService;
 import com.salesmanager.core.business.services.merchant.MerchantStoreService;
 import com.salesmanager.core.business.services.reference.country.CountryService;
-import com.salesmanager.core.business.services.reference.language.LanguageService;
-import com.salesmanager.core.business.services.reference.zone.ZoneService;
-import com.salesmanager.core.business.services.system.EmailService;
-import com.salesmanager.core.business.services.user.GroupService;
 import com.salesmanager.core.model.customer.Customer;
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.country.Country;
 import com.salesmanager.shop.constants.Constants;
-import com.salesmanager.shop.model.customer.CustomerEntity;
 import com.salesmanager.shop.model.customer.ReadableCustomer;
 import com.salesmanager.shop.populator.customer.ReadableCustomerPopulator;
 import com.salesmanager.shop.store.services.BaseApiController;
-import com.salesmanager.shop.utils.EmailTemplatesUtils;
 import com.salesmanager.shop.utils.LabelUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
@@ -34,51 +25,27 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 @Controller
+@RequestMapping("/api")
 public class CustomerApiController extends BaseApiController{
 
     @Inject
     private CustomerService customerService;
-
-    @Inject
-    private CustomerOptionValueService customerOptionValueService;
-
-    @Inject
-    private CustomerOptionService customerOptionService;
 
 
     @Inject
     private MerchantStoreService merchantStoreService;
 
     @Inject
-    private LanguageService languageService;
-
-
-    @Inject
     private CountryService countryService;
-
-    @Inject
-    private GroupService groupService;
-
-    @Inject
-    private ZoneService zoneService;
-
-    @Inject
-    private PasswordEncoder passwordEncoder;
-
-    @Inject
-    EmailService emailService;
-
     @Inject
     private LabelUtils messages;
 
-    @Inject
-    private EmailTemplatesUtils emailTemplatesUtils;
-
-    @RequestMapping(value = "/api/{store}/customers", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/customers", method = RequestMethod.POST)
     @ResponseBody
-    public Map<String, Object> saveCustomer(@Valid @ModelAttribute("customer") Customer customer,
+    public HttpServletResponse saveCustomer(@Valid @ModelAttribute("customer") Customer customer,
                                             BindingResult result,
-                                            HttpServletRequest request) throws Exception{
+                                            HttpServletRequest request,
+                                            HttpServletResponse servletResponse) throws Exception{
 
 
         HashMap<String, Object> response = new HashMap<>();
@@ -94,7 +61,9 @@ public class CustomerApiController extends BaseApiController{
         if(customer.getId() != null && customer.getId()>=0) {
             newCustomer = customerService.getById(customer.getId());
             if(newCustomer == null) {
-                return getErrorResponse(getMeta(1002, 400, "Customer not found"));
+                HashMap map = getErrorResponse(getMeta(1002, 400, "Customer not found"));
+                setResponse(servletResponse, map);
+                return servletResponse;
             }
         }
 
@@ -162,7 +131,9 @@ public class CustomerApiController extends BaseApiController{
                 errors.append(allError.getDefaultMessage()).append(", ");
             }
 
-           return getErrorResponse(getMeta(1001, 400, errors.toString()));
+            HashMap map = getErrorResponse(getMeta(1001, 400, errors.toString()));
+            setResponse(servletResponse, map);
+            return servletResponse;
         }
 
 
@@ -215,13 +186,14 @@ public class CustomerApiController extends BaseApiController{
 
         response.put("data", customerData);
 
-        return response;
+        setResponse(servletResponse, response);
+        return servletResponse;
 
     }
 
-    @RequestMapping(value = "/api/{store}/customers", method = RequestMethod.GET)
+    @RequestMapping(value = "/{store}/customers", method = RequestMethod.GET)
     @ResponseBody
-    public HashMap<String, Object> getCustomers(HttpServletRequest request, HttpServletResponse response) {
+    public HttpServletResponse getCustomers(HttpServletRequest request, HttpServletResponse servletResponse) throws Exception{
         HashMap<String, Object> responseMap = new HashMap<>();
 
 
@@ -243,16 +215,23 @@ public class CustomerApiController extends BaseApiController{
         responseMap.put("meta", getMeta(0, 200, ""));
 
 
-        return responseMap;
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
     }
 
-    @RequestMapping(value = "/api/{store}/customers/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "/{store}/customers/{id}", method = RequestMethod.GET)
     @ResponseBody
-    public HashMap<String, Object> getCustomer(@PathVariable Long id, HttpServletRequest request) throws Exception{
+    public HttpServletResponse getCustomer(@PathVariable Long id, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception{
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore merchantStore = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
 
         Customer customer = customerService.getById(id);
+
+        if(customer == null) {
+            HashMap error = getErrorResponse(getMeta(3001, 400, "Customer not found"));
+            setResponse(servletResponse, error);
+            return servletResponse;
+        }
 
         ReadableCustomerPopulator populator = new ReadableCustomerPopulator();
         ReadableCustomer readableCustomer = new ReadableCustomer();
@@ -261,34 +240,27 @@ public class CustomerApiController extends BaseApiController{
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableCustomer);
 
-        return responseMap;
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
     }
 
-    @RequestMapping(value =  "/api/{store}/customers/{id}/edit", method = RequestMethod.POST)
+    @RequestMapping(value =  "/{store}/customers/{id}/delete", method = RequestMethod.POST)
     @ResponseBody
-    public HashMap<String, Object> editCustomer(@PathVariable Long id, HttpServletRequest request) throws Exception {
-        HashMap<String, Object> responseMap = new HashMap<>();
-
-        MerchantStore merchantStore = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
-        Customer customer = customerService.getById(id);
-
-        return responseMap;
-    }
-
-    @RequestMapping(value =  "/api/{store}/customers/{id}/delete", method = RequestMethod.POST)
-    @ResponseBody
-    public HashMap<String, Object> deleteCustomer(@PathVariable Long id, HttpServletRequest request) throws Exception {
+    public HttpServletResponse deleteCustomer(@PathVariable Long id, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
         HashMap<String, Object> responseMap = new HashMap<>();
 
         Customer customer = customerService.getById(id);
 
         if(customer == null) {
-            return getErrorResponse(getMeta(1002, 400, "Customer not found"));
+            HashMap map = getErrorResponse(getMeta(1002, 400, "Customer not found"));
+            setResponse(servletResponse, map);
+            return servletResponse;
         }
         customerService.delete(customer);
         responseMap.put("data", new HashMap<>());
         responseMap.put("meta", getMeta(0, 200, "Deleted"));
-        return responseMap;
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
     }
 
 

@@ -26,7 +26,8 @@ public class ApiFilter extends HandlerInterceptorAdapter {
         MerchantStore store = merchantService.getByCode(storeCode);
         request.getSession().setAttribute(Constants.ADMIN_STORE, store);
         request.setAttribute(Constants.ADMIN_STORE, store);
-        request.setAttribute(Constants.LANGUAGE, Locale.ENGLISH);
+
+        request.setAttribute(Constants.LANGUAGE, store.getDefaultLanguage());
         return true;
     }
 }
