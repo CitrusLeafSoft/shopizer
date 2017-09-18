@@ -75,6 +75,10 @@
   			<mvc:mapping path="/admin/**"/>
   			<bean class="com.salesmanager.shop.filter.AdminFilter" />
  		</mvc:interceptor>
+		<mvc:interceptor>
+			<mvc:mapping path="/api/**"/>
+			<bean class="com.salesmanager.shop.filter.ApiFilter" />
+		</mvc:interceptor>
 	</mvc:interceptors>
 	
 

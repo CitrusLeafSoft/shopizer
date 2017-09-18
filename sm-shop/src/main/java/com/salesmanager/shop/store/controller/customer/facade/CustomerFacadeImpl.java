@@ -486,7 +486,7 @@ public class CustomerFacadeImpl implements CustomerFacade
            customerModel= billingAddressPopulator.populate( address, customerModel, merchantStore, merchantStore.getDefaultLanguage() );
            customerModel.getBilling().setCountry( country );
            if(StringUtils.isNotBlank( address.getZone() )){
-               Zone zone = zoneService.getByCode(address.getZone());
+               Zone zone = zoneService.getByCode(address.getZone(), country);
                if(zone==null) {
                   throw new ConversionException("Unsuported zone code " + address.getZone());
                }
@@ -504,7 +504,7 @@ public class CustomerFacadeImpl implements CustomerFacade
            customerModel= shippingAddressPopulator.populate( address, customerModel, merchantStore, merchantStore.getDefaultLanguage() );
            customerModel.getDelivery().setCountry( country );
            if(StringUtils.isNotBlank( address.getZone() )){
-               Zone zone = zoneService.getByCode(address.getZone());
+               Zone zone = zoneService.getByCode(address.getZone(), country);
                if(zone==null) {
                    throw new ConversionException("Unsuported zone code " + address.getZone());
                }
