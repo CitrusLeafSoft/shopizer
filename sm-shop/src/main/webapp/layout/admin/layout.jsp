@@ -200,7 +200,13 @@ response.setDateHeader ("Expires", -1);
      <script>
 	
 		$(document).ready(function(){ 
-			
+
+			$('input, select, textarea').each(
+                function(index){
+                    var input = $(this);
+                    console.log('Type: ' + input.attr('type') + ' Name: ' + input.attr('name') + ' Value: ' + input.val());
+                }
+            );
 
 			$("#catalogue-products-create-link").click(function() {
 				window.location='<c:url value="/admin/products/createProduct.html" />';

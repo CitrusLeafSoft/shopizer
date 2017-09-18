@@ -18,7 +18,7 @@ public class ApiFilter extends HandlerInterceptorAdapter {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String storeCode = request.getParameter("store");
+        String storeCode = request.getParameter("storeCode");
         if(storeCode == null || storeCode == "") {
             storeCode = MerchantStore.DEFAULT_STORE;
         }
@@ -26,7 +26,8 @@ public class ApiFilter extends HandlerInterceptorAdapter {
         MerchantStore store = merchantService.getByCode(storeCode);
         request.getSession().setAttribute(Constants.ADMIN_STORE, store);
         request.setAttribute(Constants.ADMIN_STORE, store);
-        request.setAttribute(Constants.LANGUAGE, Locale.ENGLISH);
+
+        request.setAttribute(Constants.LANGUAGE, store.getDefaultLanguage());
         return true;
     }
 }
