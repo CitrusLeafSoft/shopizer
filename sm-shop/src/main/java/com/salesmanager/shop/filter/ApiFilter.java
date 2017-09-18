@@ -18,7 +18,7 @@ public class ApiFilter extends HandlerInterceptorAdapter {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String storeCode = request.getParameter("store");
+        String storeCode = request.getParameter("storeCode");
         if(storeCode == null || storeCode == "") {
             storeCode = MerchantStore.DEFAULT_STORE;
         }
