@@ -67,9 +67,9 @@ public class ReadableProductPopulator extends
 	public ReadableProduct populate(Product source,
 			ReadableProduct target, MerchantStore store, Language language)
 			throws ConversionException {
-		Validate.notNull(pricingService, "Requires to set PricingService");
+		/*Validate.notNull(pricingService, "Requires to set PricingService");
 		Validate.notNull(imageUtils, "Requires to set imageUtils");
-		
+		*/
 		try {
 			
 
@@ -183,7 +183,7 @@ public class ReadableProductPopulator extends
 			target.setSku(source.getSku());
 			//target.setLanguage(language.getCode());
 	
-			FinalPrice price = pricingService.calculateProductPrice(source);
+			/*FinalPrice price = pricingService.calculateProductPrice(source);
 
 			target.setFinalPrice(pricingService.getDisplayAmount(price.getFinalPrice(), store));
 			target.setPrice(price.getFinalPrice());
@@ -191,7 +191,7 @@ public class ReadableProductPopulator extends
 			if(price.isDiscounted()) {
 				target.setDiscounted(true);
 				target.setOriginalPrice(pricingService.getDisplayAmount(price.getOriginalPrice(), store));
-			}
+			}*/
 			
 			//availability
 			for(ProductAvailability availability : source.getAvailabilities()) {

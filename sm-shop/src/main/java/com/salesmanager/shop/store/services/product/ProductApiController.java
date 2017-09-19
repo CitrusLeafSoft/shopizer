@@ -24,6 +24,12 @@ import com.salesmanager.core.model.tax.taxclass.TaxClass;
 import com.salesmanager.shop.admin.controller.products.ProductController;
 import com.salesmanager.shop.admin.model.web.Menu;
 import com.salesmanager.shop.constants.Constants;
+import com.salesmanager.shop.model.catalog.product.ReadableProduct;
+import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
+import com.salesmanager.shop.populator.catalog.ReadableProductPopulator;
+import com.salesmanager.shop.populator.catalog.ReadableProductPricePopulator;
+import com.salesmanager.shop.populator.catalog.ReadableProductReviewPopulator;
+import com.salesmanager.shop.model.catalog.product.ReadableProductReview;
 import com.salesmanager.shop.store.services.BaseApiController;
 import com.salesmanager.shop.utils.DateUtil;
 import com.salesmanager.shop.utils.LabelUtils;
@@ -34,14 +40,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
@@ -83,14 +87,14 @@ public class ProductApiController extends BaseApiController{
 
     @RequestMapping(value = "/create-product", method = RequestMethod.POST)
     @ResponseBody
-    public String saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  product, BindingResult result, Model model, HttpServletRequest request, Locale locale) throws Exception {
+    public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  product, BindingResult result, Model model, HttpServletRequest request, HttpServletResponse servletResponse, Locale locale) throws Exception {
 
 
        // Language language = new Language("en");//(Language)request.getAttribute("LANGUAGE");
 
         //display menu
         //setMenu(model,request);
-
+        HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
         Language language = store.getDefaultLanguage();
 
@@ -182,7 +186,7 @@ public class ProductApiController extends BaseApiController{
 
 
         if (result.hasErrors()) {
-            return "admin-products-edit";
+            return servletResponse;
         }
 
         Product newProduct = product.getProduct();
@@ -203,7 +207,7 @@ public class ProductApiController extends BaseApiController{
             //get actual product
             newProduct = productService.getById(product.getProduct().getId());
             if(newProduct!=null && newProduct.getMerchantStore().getId().intValue()!=store.getId().intValue()) {
-                return "redirect:/admin/products/products.html";
+                return servletResponse;
             }
 
             //copy properties
@@ -353,13 +357,187 @@ public class ProductApiController extends BaseApiController{
         //productService.saveOrUpdate(newProduct);
 
         //}
-
-        productService.create(newProduct);
+        try {
+            productService.create(newProduct);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
         /*model.addAttribute("success","success");*/
+       /* String productJson = new Gson().toJson(newProduct);
+        System.out.println(productJson);
+        response.put("meta", getMeta(0, 201, ""));
+        HashMap<String, Object> productData = new HashMap<>();
+        productData.put("id", newProduct.getId());
 
-        return new Gson().toJson(newProduct);
+
+        response.put("data", productData);
+
+        setResponse(servletResponse, response);*/
+        ReadableProductPopulator populator = new ReadableProductPopulator();
+        ReadableProduct readableProduct = new ReadableProduct();
+        populator.populate(product.getProduct(), readableProduct, store, store.getDefaultLanguage());
+
+        ReadableProductPricePopulator pricePopulator = new ReadableProductPricePopulator();
+        ReadableProductPrice readableProductPrice = new ReadableProductPrice();
+        pricePopulator.populate(product.getPrice(),readableProductPrice,store,store.getDefaultLanguage());
+/*
+        ReadableProductReviewPopulator productReviewPopulator = new ReadableProductReviewPopulator();
+        ReadableProductReview readableProductReview = new ReadableProductReview();
+        productReviewPopulator.populate(product.get)*/
+        HashMap<String,Object> hashMapProduct = new HashMap<>();
+        hashMapProduct.put("product",readableProduct);
+        hashMapProduct.put("price", readableProductPrice);
+        responseMap.put("meta", getMeta(0, 200, ""));
+        responseMap.put("data", hashMapProduct);
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
+
     }
 
+    @RequestMapping(value = "/{store}/product/{productId}", method = RequestMethod.GET)
+    @ResponseBody
+    public HttpServletResponse getProduct(@PathVariable  Long productId, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception{
+
+        HashMap<String, Object> responseMap = new HashMap<>();
+        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        Language language = store.getDefaultLanguage();
+
+        List<Manufacturer> manufacturers = manufacturerService.listByStore(store, language);
+
+        List<ProductType> productTypes = productTypeService.list();
+
+        List<TaxClass> taxClasses = taxClassService.listByStore(store);
+
+        List<Language> languages = store.getLanguages();
+
+
+
+        com.salesmanager.shop.admin.model.catalog.Product product = new com.salesmanager.shop.admin.model.catalog.Product();
+        //Product product  = new Product();
+        List<ProductDescription> descriptions = new ArrayList<ProductDescription>();
+
+        if(productId!=null && productId!=0) {//edit mode
+
+
+            Product dbProduct = productService.getById(productId);
+
+            if(dbProduct==null || dbProduct.getMerchantStore().getId().intValue()!=store.getId().intValue()) {
+                return null;
+            }
+
+            product.setProduct(dbProduct);
+            Set<ProductDescription> productDescriptions = dbProduct.getDescriptions();
+
+            for(Language l : languages) {
+
+                ProductDescription productDesc = null;
+                for(ProductDescription desc : productDescriptions) {
+
+                    Language lang = desc.getLanguage();
+                    if(lang.getCode().equals(l.getCode())) {
+                        productDesc = desc;
+                    }
+
+                }
+
+                if(productDesc==null) {
+                    productDesc = new ProductDescription();
+                    productDesc.setLanguage(l);
+                }
+
+                descriptions.add(productDesc);
+
+            }
+
+            for(ProductImage image : dbProduct.getImages()) {
+                if(image.isDefaultImage()) {
+                    product.setProductImage(image);
+                    break;
+                }
+
+            }
+
+
+            ProductAvailability productAvailability = null;
+            ProductPrice productPrice = null;
+
+            Set<ProductAvailability> availabilities = dbProduct.getAvailabilities();
+            if(availabilities!=null && availabilities.size()>0) {
+
+                for(ProductAvailability availability : availabilities) {
+                    if(availability.getRegion().equals(com.salesmanager.core.business.constants.Constants.ALL_REGIONS)) {
+                        productAvailability = availability;
+                        Set<ProductPrice> prices = availability.getPrices();
+                        for(ProductPrice price : prices) {
+                            if(price.isDefaultPrice()) {
+                                productPrice = price;
+                                product.setProductPrice(priceUtil.getAdminFormatedAmount(store, productPrice.getProductPriceAmount()));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if(productAvailability==null) {
+                productAvailability = new ProductAvailability();
+            }
+
+            if(productPrice==null) {
+                productPrice = new ProductPrice();
+            }
+
+            product.setAvailability(productAvailability);
+            product.setPrice(productPrice);
+            product.setDescriptions(descriptions);
+
+
+            product.setDateAvailable(DateUtil.formatDate(dbProduct.getDateAvailable()));
+
+
+        } else {
+
+
+            for(Language l : languages) {
+
+                ProductDescription desc = new ProductDescription();
+                desc.setLanguage(l);
+                descriptions.add(desc);
+
+            }
+
+            Product prod = new Product();
+
+            prod.setAvailable(true);
+
+            ProductAvailability productAvailability = new ProductAvailability();
+            ProductPrice price = new ProductPrice();
+            product.setPrice(price);
+            product.setAvailability(productAvailability);
+            product.setProduct(prod);
+            product.setDescriptions(descriptions);
+            product.setDateAvailable(DateUtil.formatDate(new Date()));
+
+
+        }
+        ReadableProductPopulator populator = new ReadableProductPopulator();
+        ReadableProduct readableProduct = new ReadableProduct();
+        populator.populate(product.getProduct(), readableProduct, store, store.getDefaultLanguage());
+
+        ReadableProductPricePopulator pricePopulator = new ReadableProductPricePopulator();
+        ReadableProductPrice readableProductPrice = new ReadableProductPrice();
+        pricePopulator.populate(product.getPrice(),readableProductPrice,store,store.getDefaultLanguage());
+/*
+        ReadableProductReviewPopulator productReviewPopulator = new ReadableProductReviewPopulator();
+        ReadableProductReview readableProductReview = new ReadableProductReview();
+        productReviewPopulator.populate(product.get)*/
+        HashMap<String,Object> hashMapProduct = new HashMap<>();
+        hashMapProduct.put("product",readableProduct);
+        hashMapProduct.put("price", readableProductPrice);
+        responseMap.put("meta", getMeta(0, 200, ""));
+        responseMap.put("data", hashMapProduct);
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
+    }
 
     private void setMenu(Model model, HttpServletRequest request) throws Exception {
 
