@@ -204,7 +204,7 @@ response.setDateHeader ("Expires", -1);
 			$('input, select, textarea').each(
                 function(index){
                     var input = $(this);
-                    console.log('Type: ' + input.attr('type') + 'Name: ' + input.attr('name') + 'Value: ' + input.val());
+                    console.log('Type: ' + input.attr('type') + ' Name: ' + input.attr('name') + ' Value: ' + input.val());
                 }
             );
 
