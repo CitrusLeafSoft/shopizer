@@ -31,7 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 
 @Controller
-@RequestMapping("/services/private")
+@RequestMapping("/services")
 public class OrderRESTController {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(OrderRESTController.class);

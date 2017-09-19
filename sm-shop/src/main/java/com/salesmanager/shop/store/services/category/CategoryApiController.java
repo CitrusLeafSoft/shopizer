@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +114,7 @@ public class CategoryApiController extends BaseApiController{
             //get from DB
             Category currentCategory = categoryService.getById(category.getId());
             if(currentCategory==null || currentCategory.getMerchantStore().getId().intValue()!=merchantStore.getId().intValue()) {
-                HashMap map = getErrorResponse(getMeta(1002, 400, "Customer not found"));
+                HashMap map = getErrorResponse(getMeta(1002, 400, "Category not found"));
                 setResponse(servletResponse, map);
                 return servletResponse;
             }
@@ -171,6 +172,34 @@ public class CategoryApiController extends BaseApiController{
         response.put("data", categoryData);
         setResponse(servletResponse, response);
         return servletResponse;
+    }
+
+    @RequestMapping(value = "/{store}/category", method = RequestMethod.GET)
+    @ResponseBody
+    public HttpServletResponse getCategories(HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
+        HashMap<String, Object> responseMap = new HashMap<>();
+
+        Language language = (Language) request.getAttribute("LANGUAGE");
+        MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
+        List<Category> categories = categoryService.listByStore(store, language);;
+        List<Map> categoryList = new ArrayList<>();
+
+        for (Category category : categories) {
+            @SuppressWarnings("rawtypes")
+            Map entry = new HashMap();
+            entry.put("categoryId", category.getId());
+            CategoryDescription description = category.getDescriptions().get(0);
+            entry.put("name", description.getName());
+            entry.put("code", category.getCode());
+            entry.put("visible", category.isVisible());
+            categoryList.add(entry);
+        }
+        responseMap.put("data", categoryList);
+        responseMap.put("meta", getMeta(0, 200, ""));
+        setResponse(servletResponse, responseMap);
+        return servletResponse;
+
+
     }
 
 }
