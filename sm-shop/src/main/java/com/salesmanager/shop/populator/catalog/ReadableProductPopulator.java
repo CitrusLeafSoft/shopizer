@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import com.salesmanager.core.model.common.Description;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.Validate;
 import org.apache.commons.lang3.StringUtils;
@@ -109,8 +110,10 @@ public class ReadableProductPopulator extends
 				target.setDescription(tragetDescription);
 			}
 			
-			if(source.getManufacturer()!=null) {
-				ManufacturerDescription manufacturer = source.getManufacturer().getDescriptions().iterator().next(); 
+			if(source.getManufacturer()!=null && source.getManufacturer().getDescriptions().size()>0) {
+				Set<ManufacturerDescription> description1= source.getManufacturer().getDescriptions();
+				//if(description1!=null)
+				ManufacturerDescription manufacturer = description1.iterator().next();
 				ReadableManufacturer manufacturerEntity = new ReadableManufacturer();
 				com.salesmanager.shop.model.catalog.manufacturer.ManufacturerDescription d = new com.salesmanager.shop.model.catalog.manufacturer.ManufacturerDescription(); 
 				d.setName(manufacturer.getName());

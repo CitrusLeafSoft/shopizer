@@ -43,11 +43,11 @@ public class ReadableProductPricePopulator extends
 
 			target.setOriginalPrice(source.getProductPriceAmount().toString());
 			target.setFinalPrice(source.getProductPriceAmount().toString());
-			/*if(finalPrice.isDiscounted()) {
+			/*if(source.) {
 				target.setDiscounted(true);
-				target.setFinalPrice(pricingService.getDisplayAmount(source.getProductPriceSpecialAmount(), store));
+				target.setFinalPrice(source.getProductPriceSpecialAmount().toString()));
 			} else {
-				target.setFinalPrice(pricingService.getDisplayAmount(finalPrice.getOriginalPrice(), store));
+				target.setFinalPrice(source.getProductPriceAmount().toString());
 			}*/
 			
 		} catch(Exception e) {

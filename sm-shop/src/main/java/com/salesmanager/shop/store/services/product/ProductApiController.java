@@ -9,7 +9,12 @@ import com.salesmanager.core.business.services.catalog.product.type.ProductTypeS
 import com.salesmanager.core.business.services.tax.TaxClassService;
 import com.salesmanager.core.business.utils.CoreConfiguration;
 import com.salesmanager.core.business.utils.ProductPriceUtils;
+import com.salesmanager.core.business.utils.ajax.AjaxPageableResponse;
+import com.salesmanager.core.business.utils.ajax.AjaxResponse;
+import com.salesmanager.core.model.catalog.category.Category;
 import com.salesmanager.core.model.catalog.product.Product;
+import com.salesmanager.core.model.catalog.product.ProductCriteria;
+import com.salesmanager.core.model.catalog.product.ProductList;
 import com.salesmanager.core.model.catalog.product.availability.ProductAvailability;
 import com.salesmanager.core.model.catalog.product.description.ProductDescription;
 import com.salesmanager.core.model.catalog.product.image.ProductImage;
@@ -25,6 +30,7 @@ import com.salesmanager.shop.admin.controller.products.ProductController;
 import com.salesmanager.shop.admin.model.web.Menu;
 import com.salesmanager.shop.constants.Constants;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
+import com.salesmanager.shop.model.catalog.product.ReadableProductList;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
 import com.salesmanager.shop.populator.catalog.ReadableProductPopulator;
 import com.salesmanager.shop.populator.catalog.ReadableProductPricePopulator;
@@ -36,6 +42,10 @@ import com.salesmanager.shop.utils.LabelUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -362,33 +372,13 @@ public class ProductApiController extends BaseApiController{
         }catch (Exception e){
             e.printStackTrace();
         }
-        /*model.addAttribute("success","success");*/
-       /* String productJson = new Gson().toJson(newProduct);
-        System.out.println(productJson);
-        response.put("meta", getMeta(0, 201, ""));
-        HashMap<String, Object> productData = new HashMap<>();
-        productData.put("id", newProduct.getId());
 
-
-        response.put("data", productData);
-
-        setResponse(servletResponse, response);*/
         ReadableProductPopulator populator = new ReadableProductPopulator();
         ReadableProduct readableProduct = new ReadableProduct();
-        populator.populate(product.getProduct(), readableProduct, store, store.getDefaultLanguage());
+        populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
 
-        ReadableProductPricePopulator pricePopulator = new ReadableProductPricePopulator();
-        ReadableProductPrice readableProductPrice = new ReadableProductPrice();
-        pricePopulator.populate(product.getPrice(),readableProductPrice,store,store.getDefaultLanguage());
-/*
-        ReadableProductReviewPopulator productReviewPopulator = new ReadableProductReviewPopulator();
-        ReadableProductReview readableProductReview = new ReadableProductReview();
-        productReviewPopulator.populate(product.get)*/
-        HashMap<String,Object> hashMapProduct = new HashMap<>();
-        hashMapProduct.put("product",readableProduct);
-        hashMapProduct.put("price", readableProductPrice);
         responseMap.put("meta", getMeta(0, 200, ""));
-        responseMap.put("data", hashMapProduct);
+        responseMap.put("data", readableProduct);
         setResponse(servletResponse, responseMap);
         return servletResponse;
 
@@ -526,15 +516,11 @@ public class ProductApiController extends BaseApiController{
         ReadableProductPricePopulator pricePopulator = new ReadableProductPricePopulator();
         ReadableProductPrice readableProductPrice = new ReadableProductPrice();
         pricePopulator.populate(product.getPrice(),readableProductPrice,store,store.getDefaultLanguage());
-/*
-        ReadableProductReviewPopulator productReviewPopulator = new ReadableProductReviewPopulator();
-        ReadableProductReview readableProductReview = new ReadableProductReview();
-        productReviewPopulator.populate(product.get)*/
-        HashMap<String,Object> hashMapProduct = new HashMap<>();
-        hashMapProduct.put("product",readableProduct);
-        hashMapProduct.put("price", readableProductPrice);
+
+        readableProduct.setOriginalPrice(readableProductPrice.getOriginalPrice());
+        readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());
         responseMap.put("meta", getMeta(0, 200, ""));
-        responseMap.put("data", hashMapProduct);
+        responseMap.put("data", readableProduct);
         setResponse(servletResponse, responseMap);
         return servletResponse;
     }
@@ -554,5 +540,150 @@ public class ProductApiController extends BaseApiController{
         model.addAttribute("activeMenus",activeMenus);
         //
     }
+    @RequestMapping(value = "/get-products", method = RequestMethod.GET)
+    public @ResponseBody
+    HttpServletResponse getProducts(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
+
+        String categoryId = request.getParameter("categoryId");
+        String sku = request.getParameter("sku");
+        String available = request.getParameter("available");
+        //String searchTerm = request.getParameter("searchTerm");
+        String name = request.getParameter("name");
+
+        HashMap<String, Object> responseMap = new HashMap<>();
+        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        Language language = store.getDefaultLanguage();
+        List productListResponse = new ArrayList() ;
+
+        try {
+
+            ProductCriteria criteria = new ProductCriteria();
+            if(!StringUtils.isBlank(categoryId) && !categoryId.equals("-1")) {
+
+                Long lcategoryId = 0L;
+                try {
+                    lcategoryId = Long.parseLong(categoryId);
+                } catch (Exception e) {
+                    responseMap.put("meta", getMeta(0, 500, "Incorrect category id"));
+                    responseMap.put("data", productListResponse);
+                    setResponse(response, responseMap);
+                    return response;
+                }
+
+                if(lcategoryId>0) {
+
+                    Category category = categoryService.getById(lcategoryId);
+
+                    if(category==null || category.getMerchantStore().getId()!=store.getId()) {
+                        return response;
+                    }
+
+                    //get all sub categories
+                    StringBuilder lineage = new StringBuilder();
+                    lineage.append(category.getLineage()).append(category.getId()).append("/");
+
+                    List<Category> categories = categoryService.listByLineage(store, lineage.toString());
+
+                    List<Long> categoryIds = new ArrayList<Long>();
+
+                    for(Category cat : categories) {
+                        categoryIds.add(cat.getId());
+                    }
+                    categoryIds.add(category.getId());
+                    criteria.setCategoryIds(categoryIds);
+
+                }
+            }
+
+            if(!StringUtils.isBlank(sku)) {
+                criteria.setCode(sku);
+            }
+
+            if(!StringUtils.isBlank(name)) {
+                criteria.setProductName(name);
+            }
+
+            if(!StringUtils.isBlank(available)) {
+                if(available.equals("true")) {
+                    criteria.setAvailable(new Boolean(true));
+                } else {
+                    criteria.setAvailable(new Boolean(false));
+                }
+            }
+
+            ProductList productList = productService.listByStore(store, language, criteria);
+            List<Product> plist = productList.getProducts();
+            ReadableProductPopulator populator = new ReadableProductPopulator();
+            ReadableProduct readableProduct = new ReadableProduct();
+
+            if(plist!=null) {
+
+                for(Product product : plist) {
+                    populator.populate(product, readableProduct, store, store.getDefaultLanguage());
+                    Map entry = new HashMap();
+                    entry.put("productId", readableProduct.getId());
+                    entry.put("name", readableProduct.getDescription().getName());
+                    entry.put("sku", readableProduct.getSku());
+                    entry.put("available", readableProduct.isAvailable());
+                    productListResponse.add(entry);
+
+
+
+
+                }
+
+            }
+
+        } catch (Exception e) {
+            responseMap.put("meta", getMeta(0, 500, "Error while fetching product list"));
+            responseMap.put("data", productListResponse);
+            setResponse(response, responseMap);
+            return response;
+
+        }
+        responseMap.put("meta", getMeta(0, 200, ""));
+        responseMap.put("data", productListResponse);
+        setResponse(response, responseMap);
+        return response;
+
+    }
+
+    @RequestMapping(value = "/delete-product", method = RequestMethod.POST)
+    @ResponseBody
+    public HttpServletResponse deleteProduct(HttpServletRequest request, HttpServletResponse response, Locale locale) throws Exception{
+        String sid = request.getParameter("productId");
+        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        Language language = store.getDefaultLanguage();
+        HashMap<String, Object> responseMap = new HashMap<>();
+        try {
+
+            Long id = Long.parseLong(sid);
+
+            Product product = productService.getById(id);
+
+            if(product==null || product.getMerchantStore().getId()!=store.getId()) {
+
+                responseMap.put("meta", getMeta(0, 500, "Product with id: " + id + "is not present"));
+                setResponse(response, responseMap);
+                return response;
+
+            } else {
+
+                productService.delete(product);
+                responseMap.put("meta", getMeta(0, 200, "Product is deleted"));
+                setResponse(response, responseMap);
+                return response;
+
+            }
+
+
+        } catch (Exception e) {
+            LOGGER.error("Error while deleting product", e);
+            responseMap.put("meta", getMeta(0, 200, e.toString()));
+            setResponse(response, responseMap);
+            return response;
+        }
+
+    }
 }
