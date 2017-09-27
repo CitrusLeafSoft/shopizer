@@ -441,7 +441,7 @@ function bindActions() {
     
 	$("#submitOrder").click(function(e) {
 
-	    alert("ashjshjhjhdjfh");
+
 	    e.preventDefault();//do not submit form
 		formValid = isFormValid();
 		resetErrorMessage();
