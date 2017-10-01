@@ -28,7 +28,7 @@ public class ShopApplicationConfiguration extends WebMvcConfigurerAdapter{
     @Bean
     public TilesConfigurer tilesConfigurer(){
         TilesConfigurer tilesConfigurer = new TilesConfigurer();
-        tilesConfigurer.setDefinitions(new String[] {"/WEB-INF/tiles/tiles-admin.xml","/WEB-INF/tiles/tiles-shop.xml"});
+        tilesConfigurer.setDefinitions(new String[] {"WEB-INF/tiles/tiles-admin.xml","WEB-INF/tiles/tiles-shop.xml"});
         tilesConfigurer.setCheckRefresh(true);
         return tilesConfigurer;
     }
