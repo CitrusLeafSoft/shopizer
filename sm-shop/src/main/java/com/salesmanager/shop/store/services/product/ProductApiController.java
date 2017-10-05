@@ -38,10 +38,12 @@ import com.salesmanager.shop.populator.catalog.ReadableProductReviewPopulator;
 import com.salesmanager.shop.model.catalog.product.ReadableProductReview;
 import com.salesmanager.shop.store.services.BaseApiController;
 import com.salesmanager.shop.utils.DateUtil;
+import com.salesmanager.shop.utils.ImageFilePath;
 import com.salesmanager.shop.utils.LabelUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -93,6 +95,10 @@ public class ProductApiController extends BaseApiController{
 
     @Inject
     CategoryService categoryService;
+
+    @Inject
+    @Qualifier("img")
+    private ImageFilePath imageUtils;
 
 
     @RequestMapping(value = "/{store}/products", method = RequestMethod.POST)
@@ -615,6 +621,7 @@ public class ProductApiController extends BaseApiController{
             ProductList productList = productService.listByStore(store, language, criteria);
             List<Product> plist = productList.getProducts();
             ReadableProductPopulator populator = new ReadableProductPopulator();
+            populator.setimageUtils(imageUtils);
             ReadableProduct readableProduct = new ReadableProduct();
 
             if(plist!=null) {
