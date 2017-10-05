@@ -52,7 +52,7 @@ public class CategoryApiController extends BaseApiController{
 
     @RequestMapping(value = "/{store}/category/{id}", method = RequestMethod.GET)
     @ResponseBody
-    public Map<String, Object> getCategory(@PathVariable Long id, HttpServletRequest request, HttpServletResponse response) {
+    public HttpServletResponse getCategory(@PathVariable Long id, HttpServletRequest request, HttpServletResponse response) throws Exception {
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore merchantStore = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
         Language language = merchantStore.getDefaultLanguage();
@@ -63,22 +63,26 @@ public class CategoryApiController extends BaseApiController{
             if(dbCategory==null || dbCategory.getMerchantStore().getId().intValue()!=merchantStore.getId().intValue()){
                 responseMap.put("data", "");
                 responseMap.put("meta", getMeta(0, 503, "Invalid category id"));
-                return getErrorResponse(responseMap);
+                setResponse(response, responseMap);
+                return response;
             }
             ReadableCategoryPopulator populator = new ReadableCategoryPopulator();
             ReadableCategory category = populator.populate(dbCategory, new ReadableCategory(), merchantStore, merchantStore.getDefaultLanguage());
 
             responseMap.put("data", category);
             responseMap.put("meta", getMeta(0, 200, ""));
-            return responseMap;
+            setResponse(response, responseMap);
+            return response;
 
         } catch (Exception e) {
             e.printStackTrace();
             LOGGER.error("Error while saving category",e);
             responseMap.put("data", "");
             responseMap.put("meta", getMeta(0, 503, "Error in Retrieving Category"));
-            return getErrorResponse(responseMap);
+
         }
+        setResponse(response, responseMap);
+        return response;
     }
 
     @RequestMapping( value="/{store}/category/{id}/delete", method=RequestMethod.POST)
