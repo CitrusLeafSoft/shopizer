@@ -102,6 +102,13 @@
 			<artifactId>h2</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>io.jsonwebtoken</groupId>
+			<artifactId>jjwt</artifactId>
+			<version>0.7.0</version>
+		</dependency>
+
+
 
 		<!--<dependency>
 		    <groupId>javax.validation</groupId>
@@ -164,7 +171,7 @@
 	</dependencies>
 
 	<build>
-		<!--<resources>
+		<resources>
 			<resource>
 				<directory>${basedir}/src/main/webapp</directory>
 				<includes>
@@ -177,7 +184,7 @@
 					<include>**/**</include>
 				</includes>
 			</resource>
-		</resources>-->
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
