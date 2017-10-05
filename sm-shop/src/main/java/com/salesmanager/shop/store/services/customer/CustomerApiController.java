@@ -205,10 +205,21 @@ public class CustomerApiController extends BaseApiController{
             @SuppressWarnings("rawtypes")
             Map entry = new HashMap();
             entry.put("id", customer.getId());
-            entry.put("firstName", customer.getBilling().getFirstName());
-            entry.put("lastName", customer.getBilling().getLastName());
-            entry.put("email", customer.getEmailAddress());
-            entry.put("country", customer.getBilling().getCountry().getIsoCode());
+            entry.put("firstName", customer.getBilling().getFirstName() == null ? "" : customer.getBilling().getFirstName());
+            entry.put("lastName", customer.getBilling().getLastName() == null ? "" : customer.getBilling().getLastName());
+            entry.put("email", customer.getEmailAddress() == null ? "" : customer.getEmailAddress());
+            entry.put("country", customer.getBilling().getCountry().getIsoCode() == null ? "" : customer.getBilling().getCountry().getIsoCode());
+            //entry.put("shippingAddress", customer.getDelivery().getAddress());
+            entry.put("physicalAddress", customer.getBilling().getAddress() == null ? "" : customer.getBilling().getAddress());
+            entry.put("dateOfBirth", customer.getDateOfBirth() == null ? "" : customer.getDateOfBirth());
+            entry.put("gender", customer.getGender() == null ? "" : customer.getGender());
+            entry.put("postalcode", customer.getBilling().getPostalCode() == null ? "" : customer.getBilling().getPostalCode());
+
+
+            entry.put("phone", customer.getBilling().getTelephone() == null ? "" : customer.getBilling().getTelephone());
+            entry.put("state", customer.getBilling().getState() == null ? "" : customer.getBilling().getState());
+            entry.put("city", customer.getBilling().getCity() == null ? "" : customer.getBilling().getCity());
+
             customerList.add(entry);
         }
         responseMap.put("data", customerList);

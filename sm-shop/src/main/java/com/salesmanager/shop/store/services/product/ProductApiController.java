@@ -95,7 +95,7 @@ public class ProductApiController extends BaseApiController{
     CategoryService categoryService;
 
 
-    @RequestMapping(value = "/products/create-product", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/products", method = RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  product, BindingResult result, Model model, HttpServletRequest request, HttpServletResponse servletResponse, Locale locale) throws Exception {
 
@@ -540,7 +540,7 @@ public class ProductApiController extends BaseApiController{
         model.addAttribute("activeMenus",activeMenus);
         //
     }
-    @RequestMapping(value = "/products/get-products", method = RequestMethod.GET)
+    @RequestMapping(value = "/{store}/products", method = RequestMethod.GET)
     public @ResponseBody
     HttpServletResponse getProducts(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
@@ -649,7 +649,7 @@ public class ProductApiController extends BaseApiController{
 
     }
 
-    @RequestMapping(value = "products/delete-product", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/products/delete-product", method = RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse deleteProduct(HttpServletRequest request, HttpServletResponse response, Locale locale) throws Exception{
         String sid = request.getParameter("productId");
