@@ -50,7 +50,7 @@ public class CategoryApiController extends BaseApiController{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CategoryApiController.class);
 
-    @RequestMapping(value = "/{store}/category/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "/{store}/categories/{id}", method = RequestMethod.GET)
     @ResponseBody
     public HttpServletResponse getCategory(@PathVariable Long id, HttpServletRequest request, HttpServletResponse response) throws Exception {
         HashMap<String, Object> responseMap = new HashMap<>();
@@ -85,7 +85,7 @@ public class CategoryApiController extends BaseApiController{
         return response;
     }
 
-    @RequestMapping( value="/{store}/category/{id}/delete", method=RequestMethod.POST)
+    @RequestMapping( value="/{store}/categories/{id}/delete", method=RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse deleteCategory(@PathVariable Long id, HttpServletRequest request, HttpServletResponse response) throws Exception {
         HashMap<String, Object> responseMap = new HashMap<>();
@@ -105,7 +105,7 @@ public class CategoryApiController extends BaseApiController{
         }
     }
 
-    @RequestMapping( value="/{store}/category", method=RequestMethod.POST)
+    @RequestMapping( value="/{store}/categories", method=RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse createCategory(@Valid @ModelAttribute("category") Category category,
                                  BindingResult result, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
@@ -178,25 +178,32 @@ public class CategoryApiController extends BaseApiController{
         return servletResponse;
     }
 
-    @RequestMapping(value = "/{store}/category", method = RequestMethod.GET)
+    @RequestMapping(value = "/{store}/categories", method = RequestMethod.GET)
     @ResponseBody
     public HttpServletResponse getCategories(HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
         HashMap<String, Object> responseMap = new HashMap<>();
+
+        Long parentId = request.getParameter("parent_id") != null ? Long.parseLong(request.getParameter("parent_id")) : -1;
 
         Language language = (Language) request.getAttribute("LANGUAGE");
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
         List<Category> categories = categoryService.listByStore(store, language);;
         List<Map> categoryList = new ArrayList<>();
 
+
         for (Category category : categories) {
             @SuppressWarnings("rawtypes")
             Map entry = new HashMap();
-            entry.put("categoryId", category.getId());
-            CategoryDescription description = category.getDescriptions().get(0);
-            entry.put("name", description.getName());
-            entry.put("code", category.getCode());
-            entry.put("visible", category.isVisible());
-            categoryList.add(entry);
+
+            if((category.getParent()!= null && category.getParent().getId() == parentId) || (category.getParent()== null && parentId == -1)){
+                entry.put("categoryId", category.getId());
+                CategoryDescription description = category.getDescriptions().get(0);
+                entry.put("name", description.getName());
+                entry.put("code", category.getCode());
+                entry.put("visible", category.isVisible());       
+                entry.put("parentId", parentId);
+                categoryList.add(entry);
+            }
         }
         responseMap.put("data", categoryList);
         responseMap.put("meta", getMeta(0, 200, ""));
