@@ -551,7 +551,7 @@ public class ProductApiController extends BaseApiController{
     HttpServletResponse getProducts(HttpServletRequest request, HttpServletResponse response) throws Exception {
 
 
-        String categoryId = request.getParameter("categoryId");
+        String categoryId = request.getParameter("category_id");
         String sku = request.getParameter("sku");
         String available = request.getParameter("available");
         //String searchTerm = request.getParameter("searchTerm");
@@ -565,7 +565,7 @@ public class ProductApiController extends BaseApiController{
         try {
 
             ProductCriteria criteria = new ProductCriteria();
-            if(!StringUtils.isBlank(categoryId) && !categoryId.equals("-1")) {
+            if(!StringUtils.isBlank(categoryId)) {
 
                 Long lcategoryId = 0L;
                 try {
@@ -577,7 +577,7 @@ public class ProductApiController extends BaseApiController{
                     return response;
                 }
 
-                if(lcategoryId>0) {
+                if(lcategoryId >= -1) {
 
                     Category category = categoryService.getById(lcategoryId);
 
