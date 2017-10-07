@@ -1,6 +1,5 @@
 package com.salesmanager.shop.store.services.product;
 
-import com.google.gson.Gson;
 import com.salesmanager.core.business.services.catalog.category.CategoryService;
 import com.salesmanager.core.business.services.catalog.product.ProductService;
 import com.salesmanager.core.business.services.catalog.product.image.ProductImageService;
@@ -9,8 +8,6 @@ import com.salesmanager.core.business.services.catalog.product.type.ProductTypeS
 import com.salesmanager.core.business.services.tax.TaxClassService;
 import com.salesmanager.core.business.utils.CoreConfiguration;
 import com.salesmanager.core.business.utils.ProductPriceUtils;
-import com.salesmanager.core.business.utils.ajax.AjaxPageableResponse;
-import com.salesmanager.core.business.utils.ajax.AjaxResponse;
 import com.salesmanager.core.model.catalog.category.Category;
 import com.salesmanager.core.model.catalog.product.Product;
 import com.salesmanager.core.model.catalog.product.ProductCriteria;
@@ -30,12 +27,9 @@ import com.salesmanager.shop.admin.controller.products.ProductController;
 import com.salesmanager.shop.admin.model.web.Menu;
 import com.salesmanager.shop.constants.Constants;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
-import com.salesmanager.shop.model.catalog.product.ReadableProductList;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
 import com.salesmanager.shop.populator.catalog.ReadableProductPopulator;
 import com.salesmanager.shop.populator.catalog.ReadableProductPricePopulator;
-import com.salesmanager.shop.populator.catalog.ReadableProductReviewPopulator;
-import com.salesmanager.shop.model.catalog.product.ReadableProductReview;
 import com.salesmanager.shop.store.services.BaseApiController;
 import com.salesmanager.shop.utils.DateUtil;
 import com.salesmanager.shop.utils.ImageFilePath;
@@ -44,10 +38,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -103,43 +93,29 @@ public class ProductApiController extends BaseApiController{
 
     @RequestMapping(value = "/{store}/products", method = RequestMethod.POST)
     @ResponseBody
-    public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  product, BindingResult result, Model model, HttpServletRequest request, HttpServletResponse servletResponse, Locale locale) throws Exception {
+    public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  productWrapper,
+                                           BindingResult result, HttpServletRequest request,
+                                           HttpServletResponse servletResponse, Locale locale) throws Exception {
 
-
-       // Language language = new Language("en");//(Language)request.getAttribute("LANGUAGE");
-
-        //display menu
-        //setMenu(model,request);
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
-        Language language = store.getDefaultLanguage();
-
-        List<Manufacturer> manufacturers = manufacturerService.listByStore(store, language);
-
-        List<ProductType> productTypes = productTypeService.list();
-
-        List<TaxClass> taxClasses = taxClassService.listByStore(store);
 
         List<Language> languages = store.getLanguages();
 
-        /*model.addAttribute("manufacturers", manufacturers);
-        model.addAttribute("productTypes", productTypes);
-        model.addAttribute("taxClasses", taxClasses);
-*/
         //validate price
-        BigDecimal submitedPrice = null;
+        BigDecimal submittedPrice = null;
         try {
-            submitedPrice = priceUtil.getAmount(product.getProductPrice());
+            submittedPrice = priceUtil.getAmount(productWrapper.getProductPrice());
         } catch (Exception e) {
             ObjectError error = new ObjectError("productPrice",messages.getMessage("NotEmpty.product.productPrice", locale));
             result.addError(error);
         }
         Date date = new Date();
-        if(!StringUtils.isBlank(product.getDateAvailable())) {
+        if(!StringUtils.isBlank(productWrapper.getDateAvailable())) {
             try {
-                date = DateUtil.getDate(product.getDateAvailable());
-                product.getAvailability().setProductDateAvailable(date);
-                product.setDateAvailable(DateUtil.formatDate(date));
+                date = DateUtil.getDate(productWrapper.getDateAvailable());
+                productWrapper.getAvailability().setProductDateAvailable(date);
+                productWrapper.setDateAvailable(DateUtil.formatDate(date));
             } catch (Exception e) {
                 ObjectError error = new ObjectError("dateAvailable",messages.getMessage("message.invalid.date", locale));
                 result.addError(error);
@@ -149,7 +125,7 @@ public class ProductApiController extends BaseApiController{
 
 
         //validate image
-        if(product.getImage()!=null && !product.getImage().isEmpty()) {
+        if(productWrapper.getImage()!=null && !productWrapper.getImage().isEmpty()) {
 
             try {
 
@@ -158,7 +134,7 @@ public class ProductApiController extends BaseApiController{
                 String maxSize = configuration.getProperty("PRODUCT_IMAGE_MAX_SIZE");
 
 
-                BufferedImage image = ImageIO.read(product.getImage().getInputStream());
+                BufferedImage image = ImageIO.read(productWrapper.getImage().getInputStream());
 
 
                 if(!StringUtils.isBlank(maxHeight)) {
@@ -184,7 +160,7 @@ public class ProductApiController extends BaseApiController{
                 if(!StringUtils.isBlank(maxSize)) {
 
                     int maxImageSize = Integer.parseInt(maxSize);
-                    if(product.getImage().getSize()>maxImageSize) {
+                    if(productWrapper.getImage().getSize()>maxImageSize) {
                         ObjectError error = new ObjectError("image",messages.getMessage("message.image.size", locale) + " {"+maxSize+"}");
                         result.addError(error);
                     }
@@ -202,45 +178,50 @@ public class ProductApiController extends BaseApiController{
 
 
         if (result.hasErrors()) {
+            HashMap errorResponse = new HashMap();
+            StringBuilder message = new StringBuilder();
+            List<ObjectError> allErrors = result.getAllErrors();
+            for(ObjectError error : allErrors) {
+                message.append(" ").append(error.getDefaultMessage());
+            }
+            errorResponse.put("meta", getMeta(400, 400, message.toString()));
+            errorResponse.put("data", new HashMap());
+            setResponse(servletResponse, errorResponse);
             return servletResponse;
         }
 
-        Product newProduct = product.getProduct();
+        Product newProduct = productWrapper.getProduct();
         ProductAvailability newProductAvailability = null;
         ProductPrice newProductPrice = null;
 
         Set<ProductPriceDescription> productPriceDescriptions = null;
 
-        //get tax class
-        //TaxClass taxClass = newProduct.getTaxClass();
-        //TaxClass dbTaxClass = taxClassService.getById(taxClass.getId());
         Set<ProductPrice> prices = new HashSet<ProductPrice>();
         Set<ProductAvailability> availabilities = new HashSet<ProductAvailability>();
 
-        if(product.getProduct().getId()!=null && product.getProduct().getId().longValue()>0) {
-
-
+        //Edit mode
+        if(productWrapper.getProduct().getId()!=null && productWrapper.getProduct().getId().longValue()>0) {
             //get actual product
-            newProduct = productService.getById(product.getProduct().getId());
+            newProduct = productService.getById(productWrapper.getProduct().getId());
             if(newProduct!=null && newProduct.getMerchantStore().getId().intValue()!=store.getId().intValue()) {
                 return servletResponse;
             }
 
             //copy properties
-            newProduct.setSku(product.getProduct().getSku());
-            newProduct.setRefSku(product.getProduct().getRefSku());
-            newProduct.setAvailable(product.getProduct().isAvailable());
+            newProduct.setSku(productWrapper.getProduct().getSku());
+            newProduct.setRefSku(productWrapper.getProduct().getRefSku());
+            newProduct.setAvailable(productWrapper.getProduct().isAvailable());
             newProduct.setDateAvailable(date);
-            newProduct.setManufacturer(product.getProduct().getManufacturer());
-            newProduct.setType(product.getProduct().getType());
-            newProduct.setProductHeight(product.getProduct().getProductHeight());
-            newProduct.setProductLength(product.getProduct().getProductLength());
-            newProduct.setProductWeight(product.getProduct().getProductWeight());
-            newProduct.setProductWidth(product.getProduct().getProductWidth());
-            newProduct.setProductVirtual(product.getProduct().isProductVirtual());
-            newProduct.setProductShipeable(product.getProduct().isProductShipeable());
-            newProduct.setTaxClass(product.getProduct().getTaxClass());
-            newProduct.setSortOrder(product.getProduct().getSortOrder());
+            newProduct.setManufacturer(productWrapper.getProduct().getManufacturer());
+            newProduct.setType(productWrapper.getProduct().getType());
+            newProduct.setProductHeight(productWrapper.getProduct().getProductHeight());
+            newProduct.setProductLength(productWrapper.getProduct().getProductLength());
+            newProduct.setProductWeight(productWrapper.getProduct().getProductWeight());
+            newProduct.setProductWidth(productWrapper.getProduct().getProductWidth());
+            newProduct.setProductVirtual(productWrapper.getProduct().isProductVirtual());
+            newProduct.setProductShipeable(productWrapper.getProduct().isProductShipeable());
+            newProduct.setTaxClass(productWrapper.getProduct().getTaxClass());
+            newProduct.setSortOrder(productWrapper.getProduct().getSortOrder());
 
             Set<ProductAvailability> avails = newProduct.getAvailabilities();
             if(avails !=null && avails.size()>0) {
@@ -255,7 +236,7 @@ public class ProductApiController extends BaseApiController{
                         for(ProductPrice price : productPrices) {
                             if(price.isDefaultPrice()) {
                                 newProductPrice = price;
-                                newProductPrice.setProductPriceAmount(submitedPrice);
+                                newProductPrice.setProductPriceAmount(submittedPrice);
                                 productPriceDescriptions = price.getDescriptions();
                             } else {
                                 prices.add(price);
@@ -270,7 +251,7 @@ public class ProductApiController extends BaseApiController{
 
             for(ProductImage image : newProduct.getImages()) {
                 if(image.isDefaultImage()) {
-                    product.setProductImage(image);
+                    productWrapper.setProductImage(image);
                 }
             }
         }
@@ -278,16 +259,16 @@ public class ProductApiController extends BaseApiController{
         if(newProductPrice==null) {
             newProductPrice = new ProductPrice();
             newProductPrice.setDefaultPrice(true);
-            newProductPrice.setProductPriceAmount(submitedPrice);
+            newProductPrice.setProductPriceAmount(submittedPrice);
         }
 
-        if(product.getProductImage()!=null && product.getProductImage().getId() == null) {
-            product.setProductImage(null);
+        if(productWrapper.getProductImage()!=null && productWrapper.getProductImage().getId() == null) {
+            productWrapper.setProductImage(null);
         }
 
         if(productPriceDescriptions==null) {
-            productPriceDescriptions = new HashSet<ProductPriceDescription>();
-            for(ProductDescription description : product.getDescriptions()) {
+            productPriceDescriptions = new HashSet<>();
+            for(ProductDescription description : productWrapper.getDescriptions()) {
                 ProductPriceDescription ppd = new ProductPriceDescription();
                 ppd.setProductPrice(newProductPrice);
                 ppd.setLanguage(description.getLanguage());
@@ -304,9 +285,9 @@ public class ProductApiController extends BaseApiController{
         }
 
 
-        newProductAvailability.setProductQuantity(product.getAvailability().getProductQuantity());
-        newProductAvailability.setProductQuantityOrderMin(product.getAvailability().getProductQuantityOrderMin());
-        newProductAvailability.setProductQuantityOrderMax(product.getAvailability().getProductQuantityOrderMax());
+        newProductAvailability.setProductQuantity(productWrapper.getAvailability().getProductQuantity());
+        newProductAvailability.setProductQuantityOrderMin(productWrapper.getAvailability().getProductQuantityOrderMin());
+        newProductAvailability.setProductQuantityOrderMax(productWrapper.getAvailability().getProductQuantityOrderMax());
         newProductAvailability.setProduct(newProduct);
         newProductAvailability.setPrices(prices);
         availabilities.add(newProductAvailability);
@@ -317,9 +298,9 @@ public class ProductApiController extends BaseApiController{
         newProduct.setAvailabilities(availabilities);
 
         Set<ProductDescription> descriptions = new HashSet<ProductDescription>();
-        if(product.getDescriptions()!=null && product.getDescriptions().size()>0) {
+        if(productWrapper.getDescriptions()!=null && productWrapper.getDescriptions().size()>0) {
 
-            for(ProductDescription description : product.getDescriptions()) {
+            for(ProductDescription description : productWrapper.getDescriptions()) {
                 description.setProduct(newProduct);
                 descriptions.add(description);
 
@@ -327,21 +308,21 @@ public class ProductApiController extends BaseApiController{
         }
 
         newProduct.setDescriptions(descriptions);
-        product.setDateAvailable(DateUtil.formatDate(date));
+        productWrapper.setDateAvailable(DateUtil.formatDate(date));
 
 
 
-        if(product.getImage()!=null && !product.getImage().isEmpty()) {
+        if(productWrapper.getImage()!=null && !productWrapper.getImage().isEmpty()) {
 
 
 
-            String imageName = product.getImage().getOriginalFilename();
+            String imageName = productWrapper.getImage().getOriginalFilename();
 
 
 
             ProductImage productImage = new ProductImage();
             productImage.setDefaultImage(true);
-            productImage.setImage(product.getImage().getInputStream());
+            productImage.setImage(productWrapper.getImage().getInputStream());
             productImage.setProductImage(imageName);
 
 
@@ -362,17 +343,9 @@ public class ProductApiController extends BaseApiController{
 
             newProduct.getImages().add(productImage);
 
-            //productService.saveOrUpdate(newProduct);
-
             //product displayed
-            product.setProductImage(productImage);
-
-
-        } //else {
-
-        //productService.saveOrUpdate(newProduct);
-
-        //}
+            productWrapper.setProductImage(productImage);
+        }
         try {
             productService.create(newProduct);
         }catch (Exception e){
@@ -656,7 +629,7 @@ public class ProductApiController extends BaseApiController{
 
     }
 
-    @RequestMapping(value = "/{store}/products/delete-product", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/products/delete", method = RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse deleteProduct(HttpServletRequest request, HttpServletResponse response, Locale locale) throws Exception{
         String sid = request.getParameter("productId");
