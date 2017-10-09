@@ -1,7 +1,5 @@
 package com.salesmanager.shop.populator.catalog;
 
-import org.apache.commons.lang.Validate;
-
 import com.salesmanager.core.business.exception.ConversionException;
 import com.salesmanager.core.business.services.catalog.product.PricingService;
 import com.salesmanager.core.business.utils.AbstractDataPopulator;
@@ -37,18 +35,18 @@ public class ReadableProductPricePopulator extends
 */
 		try {
 			
-			//FinalPrice finalPrice = pricingService.calculateProductPrice(source.getProductAvailability().getProduct());
+			FinalPrice finalPrice = pricingService.calculateProductPrice(source.getProductAvailability().getProduct());
 			
-			//target.setOriginalPrice(pricingService.getDisplayAmount(source.getProductPriceAmount(), store));
+			target.setOriginalPrice(pricingService.getDisplayAmount(source.getProductPriceAmount(), store));
 
 			target.setOriginalPrice(source.getProductPriceAmount().toString());
 			target.setFinalPrice(source.getProductPriceAmount().toString());
-			/*if(source.) {
+			if(finalPrice.isDiscounted()) {
 				target.setDiscounted(true);
-				target.setFinalPrice(source.getProductPriceSpecialAmount().toString()));
+				target.setFinalPrice(source.getProductPriceSpecialAmount().toString());
 			} else {
 				target.setFinalPrice(source.getProductPriceAmount().toString());
-			}*/
+			}
 			
 		} catch(Exception e) {
 			throw new ConversionException("Exception while converting to ReadableProductPrice",e);

@@ -1,19 +1,9 @@
 package com.salesmanager.shop.populator.catalog;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
-import com.salesmanager.core.model.common.Description;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.Validate;
-import org.apache.commons.lang3.StringUtils;
-
 import com.salesmanager.core.business.constants.Constants;
 import com.salesmanager.core.business.exception.ConversionException;
 import com.salesmanager.core.business.services.catalog.product.PricingService;
 import com.salesmanager.core.business.utils.AbstractDataPopulator;
-import com.salesmanager.core.model.catalog.category.Category;
 import com.salesmanager.core.model.catalog.product.Product;
 import com.salesmanager.core.model.catalog.product.availability.ProductAvailability;
 import com.salesmanager.core.model.catalog.product.description.ProductDescription;
@@ -26,6 +16,11 @@ import com.salesmanager.shop.model.catalog.ReadableImage;
 import com.salesmanager.shop.model.catalog.manufacturer.ReadableManufacturer;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
 import com.salesmanager.shop.utils.ImageFilePath;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 
 
@@ -186,7 +181,7 @@ public class ReadableProductPopulator extends
 			target.setSku(source.getSku());
 			//target.setLanguage(language.getCode());
 	
-			/*FinalPrice price = pricingService.calculateProductPrice(source);
+			FinalPrice price = pricingService.calculateProductPrice(source);
 
 			target.setFinalPrice(pricingService.getDisplayAmount(price.getFinalPrice(), store));
 			target.setPrice(price.getFinalPrice());
@@ -194,7 +189,7 @@ public class ReadableProductPopulator extends
 			if(price.isDiscounted()) {
 				target.setDiscounted(true);
 				target.setOriginalPrice(pricingService.getDisplayAmount(price.getOriginalPrice(), store));
-			}*/
+			}
 			
 			//availability
 			for(ProductAvailability availability : source.getAvailabilities()) {

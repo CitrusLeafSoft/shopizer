@@ -1,6 +1,7 @@
 package com.salesmanager.shop.store.services.product;
 
 import com.salesmanager.core.business.services.catalog.category.CategoryService;
+import com.salesmanager.core.business.services.catalog.product.PricingService;
 import com.salesmanager.core.business.services.catalog.product.ProductService;
 import com.salesmanager.core.business.services.catalog.product.image.ProductImageService;
 import com.salesmanager.core.business.services.catalog.product.manufacturer.ManufacturerService;
@@ -16,15 +17,11 @@ import com.salesmanager.core.model.catalog.product.availability.ProductAvailabil
 import com.salesmanager.core.model.catalog.product.description.ProductDescription;
 import com.salesmanager.core.model.catalog.product.image.ProductImage;
 import com.salesmanager.core.model.catalog.product.image.ProductImageDescription;
-import com.salesmanager.core.model.catalog.product.manufacturer.Manufacturer;
 import com.salesmanager.core.model.catalog.product.price.ProductPrice;
 import com.salesmanager.core.model.catalog.product.price.ProductPriceDescription;
-import com.salesmanager.core.model.catalog.product.type.ProductType;
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.language.Language;
-import com.salesmanager.core.model.tax.taxclass.TaxClass;
 import com.salesmanager.shop.admin.controller.products.ProductController;
-import com.salesmanager.shop.admin.model.web.Menu;
 import com.salesmanager.shop.constants.Constants;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
@@ -39,7 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
@@ -55,7 +51,7 @@ import java.util.*;
 
 @Controller
 @RequestMapping(value = "/api")
-public class ProductApiController extends BaseApiController{
+public class ProductApiController extends BaseApiController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProductController.class);
 
@@ -89,43 +85,52 @@ public class ProductApiController extends BaseApiController{
     @Inject
     @Qualifier("img")
     private ImageFilePath imageUtils;
+    @Inject
+    private PricingService pricingService;
 
 
     @RequestMapping(value = "/{store}/products", method = RequestMethod.POST)
     @ResponseBody
-    public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product  productWrapper,
+    public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product productWrapper,
                                            BindingResult result, HttpServletRequest request,
                                            HttpServletResponse servletResponse, Locale locale) throws Exception {
 
         HashMap<String, Object> responseMap = new HashMap<>();
-        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
+        Language language = (Language) request.getAttribute(Constants.LANGUAGE);
 
         List<Language> languages = store.getLanguages();
+
+        Product existingProduct = productService.getByCode(productWrapper.getProduct().getSku(), language);
+
+        if (existingProduct != null) {
+            setResponse(servletResponse, getErrorResponse(getMeta(400, 400, "SKU already exists")));
+            return servletResponse;
+        }
 
         //validate price
         BigDecimal submittedPrice = null;
         try {
             submittedPrice = priceUtil.getAmount(productWrapper.getProductPrice());
         } catch (Exception e) {
-            ObjectError error = new ObjectError("productPrice",messages.getMessage("NotEmpty.product.productPrice", locale));
+            ObjectError error = new ObjectError("productPrice", messages.getMessage("NotEmpty.product.productPrice", locale));
             result.addError(error);
         }
         Date date = new Date();
-        if(!StringUtils.isBlank(productWrapper.getDateAvailable())) {
+        if (!StringUtils.isBlank(productWrapper.getDateAvailable())) {
             try {
                 date = DateUtil.getDate(productWrapper.getDateAvailable());
                 productWrapper.getAvailability().setProductDateAvailable(date);
                 productWrapper.setDateAvailable(DateUtil.formatDate(date));
             } catch (Exception e) {
-                ObjectError error = new ObjectError("dateAvailable",messages.getMessage("message.invalid.date", locale));
+                ObjectError error = new ObjectError("dateAvailable", messages.getMessage("message.invalid.date", locale));
                 result.addError(error);
             }
         }
 
 
-
         //validate image
-        if(productWrapper.getImage()!=null && !productWrapper.getImage().isEmpty()) {
+        if (productWrapper.getImage() != null && !productWrapper.getImage().isEmpty()) {
 
             try {
 
@@ -137,36 +142,35 @@ public class ProductApiController extends BaseApiController{
                 BufferedImage image = ImageIO.read(productWrapper.getImage().getInputStream());
 
 
-                if(!StringUtils.isBlank(maxHeight)) {
+                if (!StringUtils.isBlank(maxHeight)) {
 
                     int maxImageHeight = Integer.parseInt(maxHeight);
-                    if(image.getHeight()>maxImageHeight) {
-                        ObjectError error = new ObjectError("image",messages.getMessage("message.image.height", locale) + " {"+maxHeight+"}");
+                    if (image.getHeight() > maxImageHeight) {
+                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.height", locale) + " {" + maxHeight + "}");
                         result.addError(error);
                     }
 
                 }
 
-                if(!StringUtils.isBlank(maxWidth)) {
+                if (!StringUtils.isBlank(maxWidth)) {
 
                     int maxImageWidth = Integer.parseInt(maxWidth);
-                    if(image.getWidth()>maxImageWidth) {
-                        ObjectError error = new ObjectError("image",messages.getMessage("message.image.width", locale) + " {"+maxWidth+"}");
+                    if (image.getWidth() > maxImageWidth) {
+                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.width", locale) + " {" + maxWidth + "}");
                         result.addError(error);
                     }
 
                 }
 
-                if(!StringUtils.isBlank(maxSize)) {
+                if (!StringUtils.isBlank(maxSize)) {
 
                     int maxImageSize = Integer.parseInt(maxSize);
-                    if(productWrapper.getImage().getSize()>maxImageSize) {
-                        ObjectError error = new ObjectError("image",messages.getMessage("message.image.size", locale) + " {"+maxSize+"}");
+                    if (productWrapper.getImage().getSize() > maxImageSize) {
+                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.size", locale) + " {" + maxSize + "}");
                         result.addError(error);
                     }
 
                 }
-
 
 
             } catch (Exception e) {
@@ -176,12 +180,11 @@ public class ProductApiController extends BaseApiController{
         }
 
 
-
         if (result.hasErrors()) {
             HashMap errorResponse = new HashMap();
             StringBuilder message = new StringBuilder();
             List<ObjectError> allErrors = result.getAllErrors();
-            for(ObjectError error : allErrors) {
+            for (ObjectError error : allErrors) {
                 message.append(" ").append(error.getDefaultMessage());
             }
             errorResponse.put("meta", getMeta(400, 400, message.toString()));
@@ -200,10 +203,11 @@ public class ProductApiController extends BaseApiController{
         Set<ProductAvailability> availabilities = new HashSet<ProductAvailability>();
 
         //Edit mode
-        if(productWrapper.getProduct().getId()!=null && productWrapper.getProduct().getId().longValue()>0) {
+        if (productWrapper.getProduct().getId() != null && productWrapper.getProduct().getId().longValue() > 0) {
             //get actual product
             newProduct = productService.getById(productWrapper.getProduct().getId());
-            if(newProduct!=null && newProduct.getMerchantStore().getId().intValue()!=store.getId().intValue()) {
+            if (newProduct != null && newProduct.getMerchantStore().getId().intValue() != store.getId().intValue()) {
+                setResponse(servletResponse, getErrorResponse(getMeta(400, 400, "Invalid Product ID")));
                 return servletResponse;
             }
 
@@ -224,17 +228,17 @@ public class ProductApiController extends BaseApiController{
             newProduct.setSortOrder(productWrapper.getProduct().getSortOrder());
 
             Set<ProductAvailability> avails = newProduct.getAvailabilities();
-            if(avails !=null && avails.size()>0) {
+            if (avails != null && avails.size() > 0) {
 
-                for(ProductAvailability availability : avails) {
-                    if(availability.getRegion().equals(com.salesmanager.core.business.constants.Constants.ALL_REGIONS)) {
+                for (ProductAvailability availability : avails) {
+                    if (availability.getRegion().equals(com.salesmanager.core.business.constants.Constants.ALL_REGIONS)) {
 
 
                         newProductAvailability = availability;
                         Set<ProductPrice> productPrices = availability.getPrices();
 
-                        for(ProductPrice price : productPrices) {
-                            if(price.isDefaultPrice()) {
+                        for (ProductPrice price : productPrices) {
+                            if (price.isDefaultPrice()) {
                                 newProductPrice = price;
                                 newProductPrice.setProductPriceAmount(submittedPrice);
                                 productPriceDescriptions = price.getDescriptions();
@@ -249,26 +253,26 @@ public class ProductApiController extends BaseApiController{
             }
 
 
-            for(ProductImage image : newProduct.getImages()) {
-                if(image.isDefaultImage()) {
+            for (ProductImage image : newProduct.getImages()) {
+                if (image.isDefaultImage()) {
                     productWrapper.setProductImage(image);
                 }
             }
         }
 
-        if(newProductPrice==null) {
+        if (newProductPrice == null) {
             newProductPrice = new ProductPrice();
             newProductPrice.setDefaultPrice(true);
             newProductPrice.setProductPriceAmount(submittedPrice);
         }
 
-        if(productWrapper.getProductImage()!=null && productWrapper.getProductImage().getId() == null) {
+        if (productWrapper.getProductImage() != null && productWrapper.getProductImage().getId() == null) {
             productWrapper.setProductImage(null);
         }
 
-        if(productPriceDescriptions==null) {
+        if (productPriceDescriptions == null) {
             productPriceDescriptions = new HashSet<>();
-            for(ProductDescription description : productWrapper.getDescriptions()) {
+            for (ProductDescription description : productWrapper.getDescriptions()) {
                 ProductPriceDescription ppd = new ProductPriceDescription();
                 ppd.setProductPrice(newProductPrice);
                 ppd.setLanguage(description.getLanguage());
@@ -280,7 +284,7 @@ public class ProductApiController extends BaseApiController{
 
         newProduct.setMerchantStore(store);
 
-        if(newProductAvailability==null) {
+        if (newProductAvailability == null) {
             newProductAvailability = new ProductAvailability();
         }
 
@@ -298,9 +302,9 @@ public class ProductApiController extends BaseApiController{
         newProduct.setAvailabilities(availabilities);
 
         Set<ProductDescription> descriptions = new HashSet<ProductDescription>();
-        if(productWrapper.getDescriptions()!=null && productWrapper.getDescriptions().size()>0) {
+        if (productWrapper.getDescriptions() != null && productWrapper.getDescriptions().size() > 0) {
 
-            for(ProductDescription description : productWrapper.getDescriptions()) {
+            for (ProductDescription description : productWrapper.getDescriptions()) {
                 description.setProduct(newProduct);
                 descriptions.add(description);
 
@@ -311,13 +315,10 @@ public class ProductApiController extends BaseApiController{
         productWrapper.setDateAvailable(DateUtil.formatDate(date));
 
 
-
-        if(productWrapper.getImage()!=null && !productWrapper.getImage().isEmpty()) {
-
+        if (productWrapper.getImage() != null && !productWrapper.getImage().isEmpty()) {
 
 
             String imageName = productWrapper.getImage().getOriginalFilename();
-
 
 
             ProductImage productImage = new ProductImage();
@@ -328,7 +329,7 @@ public class ProductApiController extends BaseApiController{
 
             List<ProductImageDescription> imagesDescriptions = new ArrayList<ProductImageDescription>();
 
-            for(Language l : languages) {
+            for (Language l : languages) {
 
                 ProductImageDescription imageDescription = new ProductImageDescription();
                 imageDescription.setName(imageName);
@@ -348,7 +349,7 @@ public class ProductApiController extends BaseApiController{
         }
         try {
             productService.create(newProduct);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -365,51 +366,44 @@ public class ProductApiController extends BaseApiController{
 
     @RequestMapping(value = "/{store}/products/{productId}", method = RequestMethod.GET)
     @ResponseBody
-    public HttpServletResponse getProduct(@PathVariable  Long productId, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception{
+    public HttpServletResponse getProduct(@PathVariable Long productId, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
 
         HashMap<String, Object> responseMap = new HashMap<>();
-        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
         Language language = store.getDefaultLanguage();
 
-        List<Manufacturer> manufacturers = manufacturerService.listByStore(store, language);
-
-        List<ProductType> productTypes = productTypeService.list();
-
-        List<TaxClass> taxClasses = taxClassService.listByStore(store);
-
         List<Language> languages = store.getLanguages();
-
 
 
         com.salesmanager.shop.admin.model.catalog.Product product = new com.salesmanager.shop.admin.model.catalog.Product();
         //Product product  = new Product();
         List<ProductDescription> descriptions = new ArrayList<ProductDescription>();
 
-        if(productId!=null && productId!=0) {//edit mode
+        if (productId != null && productId != 0) {//edit mode
 
 
             Product dbProduct = productService.getById(productId);
 
-            if(dbProduct==null || dbProduct.getMerchantStore().getId().intValue()!=store.getId().intValue()) {
+            if (dbProduct == null || dbProduct.getMerchantStore().getId().intValue() != store.getId().intValue()) {
                 return null;
             }
 
             product.setProduct(dbProduct);
             Set<ProductDescription> productDescriptions = dbProduct.getDescriptions();
 
-            for(Language l : languages) {
+            for (Language l : languages) {
 
                 ProductDescription productDesc = null;
-                for(ProductDescription desc : productDescriptions) {
+                for (ProductDescription desc : productDescriptions) {
 
                     Language lang = desc.getLanguage();
-                    if(lang.getCode().equals(l.getCode())) {
+                    if (lang.getCode().equals(l.getCode())) {
                         productDesc = desc;
                     }
 
                 }
 
-                if(productDesc==null) {
+                if (productDesc == null) {
                     productDesc = new ProductDescription();
                     productDesc.setLanguage(l);
                 }
@@ -418,8 +412,8 @@ public class ProductApiController extends BaseApiController{
 
             }
 
-            for(ProductImage image : dbProduct.getImages()) {
-                if(image.isDefaultImage()) {
+            for (ProductImage image : dbProduct.getImages()) {
+                if (image.isDefaultImage()) {
                     product.setProductImage(image);
                     break;
                 }
@@ -431,14 +425,14 @@ public class ProductApiController extends BaseApiController{
             ProductPrice productPrice = null;
 
             Set<ProductAvailability> availabilities = dbProduct.getAvailabilities();
-            if(availabilities!=null && availabilities.size()>0) {
+            if (availabilities != null && availabilities.size() > 0) {
 
-                for(ProductAvailability availability : availabilities) {
-                    if(availability.getRegion().equals(com.salesmanager.core.business.constants.Constants.ALL_REGIONS)) {
+                for (ProductAvailability availability : availabilities) {
+                    if (availability.getRegion().equals(com.salesmanager.core.business.constants.Constants.ALL_REGIONS)) {
                         productAvailability = availability;
                         Set<ProductPrice> prices = availability.getPrices();
-                        for(ProductPrice price : prices) {
-                            if(price.isDefaultPrice()) {
+                        for (ProductPrice price : prices) {
+                            if (price.isDefaultPrice()) {
                                 productPrice = price;
                                 product.setProductPrice(priceUtil.getAdminFormatedAmount(store, productPrice.getProductPriceAmount()));
                             }
@@ -447,11 +441,11 @@ public class ProductApiController extends BaseApiController{
                 }
             }
 
-            if(productAvailability==null) {
+            if (productAvailability == null) {
                 productAvailability = new ProductAvailability();
             }
 
-            if(productPrice==null) {
+            if (productPrice == null) {
                 productPrice = new ProductPrice();
             }
 
@@ -466,7 +460,7 @@ public class ProductApiController extends BaseApiController{
         } else {
 
 
-            for(Language l : languages) {
+            for (Language l : languages) {
 
                 ProductDescription desc = new ProductDescription();
                 desc.setLanguage(l);
@@ -489,36 +483,25 @@ public class ProductApiController extends BaseApiController{
 
         }
         ReadableProductPopulator populator = new ReadableProductPopulator();
+        populator.setPricingService(pricingService);
+        populator.setimageUtils(imageUtils);
         ReadableProduct readableProduct = new ReadableProduct();
         populator.populate(product.getProduct(), readableProduct, store, store.getDefaultLanguage());
 
         ReadableProductPricePopulator pricePopulator = new ReadableProductPricePopulator();
+        pricePopulator.setPricingService(pricingService);
         ReadableProductPrice readableProductPrice = new ReadableProductPrice();
-        pricePopulator.populate(product.getPrice(),readableProductPrice,store,store.getDefaultLanguage());
+        pricePopulator.populate(product.getPrice(), readableProductPrice, store, store.getDefaultLanguage());
 
-        readableProduct.setOriginalPrice(readableProductPrice.getOriginalPrice());
-        readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());
+        /*readableProduct.setOriginalPrice(readableProductPrice.getOriginalPrice());
+        readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());*/
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableProduct);
         setResponse(servletResponse, responseMap);
         return servletResponse;
     }
 
-    private void setMenu(Model model, HttpServletRequest request) throws Exception {
 
-        //display menu
-        Map<String,String> activeMenus = new HashMap<String,String>();
-        activeMenus.put("catalogue", "catalogue");
-        activeMenus.put("catalogue-products", "catalogue-products");
-
-        @SuppressWarnings("unchecked")
-        Map<String, Menu> menus = (Map<String, Menu>)request.getAttribute("MENUMAP");
-
-        Menu currentMenu = (Menu)menus.get("catalogue");
-        model.addAttribute("currentMenu",currentMenu);
-        model.addAttribute("activeMenus",activeMenus);
-        //
-    }
     @RequestMapping(value = "/{store}/products", method = RequestMethod.GET)
     public @ResponseBody
     HttpServletResponse getProducts(HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -531,14 +514,14 @@ public class ProductApiController extends BaseApiController{
         String name = request.getParameter("name");
 
         HashMap<String, Object> responseMap = new HashMap<>();
-        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
         Language language = store.getDefaultLanguage();
-        List productListResponse = new ArrayList() ;
+        List productListResponse = new ArrayList();
 
         try {
 
             ProductCriteria criteria = new ProductCriteria();
-            if(!StringUtils.isBlank(categoryId)) {
+            if (!StringUtils.isBlank(categoryId)) {
 
                 Long lcategoryId = 0L;
                 try {
@@ -550,11 +533,11 @@ public class ProductApiController extends BaseApiController{
                     return response;
                 }
 
-                if(lcategoryId >= -1) {
+                if (lcategoryId >= -1) {
 
                     Category category = categoryService.getById(lcategoryId);
 
-                    if(category==null || category.getMerchantStore().getId()!=store.getId()) {
+                    if (category == null || category.getMerchantStore().getId() != store.getId()) {
                         return response;
                     }
 
@@ -566,7 +549,7 @@ public class ProductApiController extends BaseApiController{
 
                     List<Long> categoryIds = new ArrayList<Long>();
 
-                    for(Category cat : categories) {
+                    for (Category cat : categories) {
                         categoryIds.add(cat.getId());
                     }
                     categoryIds.add(category.getId());
@@ -575,16 +558,16 @@ public class ProductApiController extends BaseApiController{
                 }
             }
 
-            if(!StringUtils.isBlank(sku)) {
+            if (!StringUtils.isBlank(sku)) {
                 criteria.setCode(sku);
             }
 
-            if(!StringUtils.isBlank(name)) {
+            if (!StringUtils.isBlank(name)) {
                 criteria.setProductName(name);
             }
 
-            if(!StringUtils.isBlank(available)) {
-                if(available.equals("true")) {
+            if (!StringUtils.isBlank(available)) {
+                if (available.equals("true")) {
                     criteria.setAvailable(new Boolean(true));
                 } else {
                     criteria.setAvailable(new Boolean(false));
@@ -594,21 +577,22 @@ public class ProductApiController extends BaseApiController{
             ProductList productList = productService.listByStore(store, language, criteria);
             List<Product> plist = productList.getProducts();
             ReadableProductPopulator populator = new ReadableProductPopulator();
+            populator.setPricingService(pricingService);
             populator.setimageUtils(imageUtils);
             ReadableProduct readableProduct = new ReadableProduct();
 
-            if(plist!=null) {
+            if (plist != null) {
 
-                for(Product product : plist) {
+                for (Product product : plist) {
                     populator.populate(product, readableProduct, store, store.getDefaultLanguage());
                     Map entry = new HashMap();
                     entry.put("productId", readableProduct.getId());
                     entry.put("name", readableProduct.getDescription().getName());
                     entry.put("sku", readableProduct.getSku());
                     entry.put("available", readableProduct.isAvailable());
+                    entry.put("quantity", readableProduct.getQuantity());
+                    entry.put("price", readableProduct.getPrice());
                     productListResponse.add(entry);
-
-
 
 
                 }
@@ -631,9 +615,9 @@ public class ProductApiController extends BaseApiController{
 
     @RequestMapping(value = "/{store}/products/delete", method = RequestMethod.POST)
     @ResponseBody
-    public HttpServletResponse deleteProduct(HttpServletRequest request, HttpServletResponse response, Locale locale) throws Exception{
+    public HttpServletResponse deleteProduct(HttpServletRequest request, HttpServletResponse response, Locale locale) throws Exception {
         String sid = request.getParameter("productId");
-        MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
         Language language = store.getDefaultLanguage();
         HashMap<String, Object> responseMap = new HashMap<>();
         try {
@@ -642,7 +626,7 @@ public class ProductApiController extends BaseApiController{
 
             Product product = productService.getById(id);
 
-            if(product==null || product.getMerchantStore().getId()!=store.getId()) {
+            if (product == null || product.getMerchantStore().getId() != store.getId()) {
 
                 responseMap.put("meta", getMeta(0, 500, "Product with id: " + id + "is not present"));
                 setResponse(response, responseMap);
