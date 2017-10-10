@@ -5,6 +5,7 @@ import com.salesmanager.core.business.services.catalog.product.PricingService;
 import com.salesmanager.core.business.services.catalog.product.ProductService;
 import com.salesmanager.core.business.services.catalog.product.image.ProductImageService;
 import com.salesmanager.core.business.services.catalog.product.manufacturer.ManufacturerService;
+import com.salesmanager.core.business.services.catalog.product.relationship.ProductRelationshipService;
 import com.salesmanager.core.business.services.catalog.product.type.ProductTypeService;
 import com.salesmanager.core.business.services.tax.TaxClassService;
 import com.salesmanager.core.business.utils.CoreConfiguration;
@@ -19,6 +20,7 @@ import com.salesmanager.core.model.catalog.product.image.ProductImage;
 import com.salesmanager.core.model.catalog.product.image.ProductImageDescription;
 import com.salesmanager.core.model.catalog.product.price.ProductPrice;
 import com.salesmanager.core.model.catalog.product.price.ProductPriceDescription;
+import com.salesmanager.core.model.catalog.product.relationship.ProductRelationship;
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.shop.admin.controller.products.ProductController;
@@ -87,13 +89,15 @@ public class ProductApiController extends BaseApiController {
     private ImageFilePath imageUtils;
     @Inject
     private PricingService pricingService;
+    @Inject
+    ProductRelationshipService productRelationshipService;
 
 
     @RequestMapping(value = "/{store}/products", method = RequestMethod.POST)
     @ResponseBody
     public HttpServletResponse saveProduct(@Valid @ModelAttribute("product") com.salesmanager.shop.admin.model.catalog.Product productWrapper,
                                            BindingResult result, HttpServletRequest request,
-                                           HttpServletResponse servletResponse, Locale locale) throws Exception {
+                                           HttpServletResponse response, Locale locale) throws Exception {
 
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
@@ -104,8 +108,8 @@ public class ProductApiController extends BaseApiController {
         Product existingProduct = productService.getByCode(productWrapper.getProduct().getSku(), language);
 
         if (existingProduct != null) {
-            setResponse(servletResponse, getErrorResponse(getMeta(400, 400, "SKU already exists")));
-            return servletResponse;
+            setResponse(response, getErrorResponse(getMeta(400, 400, "SKU already exists")));
+            return response;
         }
 
         //validate price
@@ -189,8 +193,8 @@ public class ProductApiController extends BaseApiController {
             }
             errorResponse.put("meta", getMeta(400, 400, message.toString()));
             errorResponse.put("data", new HashMap());
-            setResponse(servletResponse, errorResponse);
-            return servletResponse;
+            setResponse(response, errorResponse);
+            return response;
         }
 
         Product newProduct = productWrapper.getProduct();
@@ -207,8 +211,8 @@ public class ProductApiController extends BaseApiController {
             //get actual product
             newProduct = productService.getById(productWrapper.getProduct().getId());
             if (newProduct != null && newProduct.getMerchantStore().getId().intValue() != store.getId().intValue()) {
-                setResponse(servletResponse, getErrorResponse(getMeta(400, 400, "Invalid Product ID")));
-                return servletResponse;
+                setResponse(response, getErrorResponse(getMeta(400, 400, "Invalid Product ID")));
+                return response;
             }
 
             //copy properties
@@ -353,14 +357,36 @@ public class ProductApiController extends BaseApiController {
             e.printStackTrace();
         }
 
+        final String groupCode = newProduct.getSku() + "-related";
+        ProductRelationship relatedProducts = null;
+
+        List<ProductRelationship> groups = productRelationshipService.getGroups(store);
+        for(ProductRelationship grp : groups) {
+            if(grp.getCode().equalsIgnoreCase(groupCode)) {
+                relatedProducts = grp;
+            }
+        }
+
+        if(relatedProducts == null) {
+            //create a product relationship for related products
+            relatedProducts = new ProductRelationship();
+            relatedProducts.setCode(groupCode);
+            relatedProducts.setActive(true);
+            relatedProducts.setStore(store);
+
+            productRelationshipService.addGroup(store, relatedProducts.getCode());
+        }
+
         ReadableProductPopulator populator = new ReadableProductPopulator();
+        populator.setimageUtils(imageUtils);
+        populator.setPricingService(pricingService);
         ReadableProduct readableProduct = new ReadableProduct();
         populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
 
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableProduct);
-        setResponse(servletResponse, responseMap);
-        return servletResponse;
+        setResponse(response, responseMap);
+        return response;
 
     }
 
