@@ -60,41 +60,57 @@ public class ProductGroupApiController extends BaseApiController {
 
     }
 
-    @RequestMapping(value = "/{store}/products/groups/add-product", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/products/groups/{code}/add-product", method = RequestMethod.POST)
     @ResponseBody
-    public HttpServletResponse addProduct(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public HttpServletResponse addProduct(@PathVariable String code, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        String code = request.getParameter("code");
-        String productId = request.getParameter("productId");
+        Long productId = Long.parseLong(request.getParameter("productId"));
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
-
-        Product product = productService.getById(Long.parseLong(productId));
-
-        ProductRelationship relationship = new ProductRelationship();
-        relationship.setActive(true);
-        relationship.setCode(code);
-        relationship.setStore(store);
-        relationship.setRelatedProduct(product);
-
-        productRelationshipService.saveOrUpdate(relationship);
-
-        Map meta = getMeta(0, 200, "");
-        Map data = new HashMap();
+        ProductRelationship relationship = null;
+        List<ProductRelationship> relationships = productRelationshipService.getByGroup(store, code);
         HashMap responseMap = new HashMap();
-        responseMap.put("meta", meta);
-        responseMap.put("data", data);
 
-        setResponse(response, responseMap);
+        for (ProductRelationship r : relationships) {
+            if (Objects.equals(r.getRelatedProduct().getId(), productId)) {
+                relationship = r;
+                break;
+            }
+        }
+
+        if (relationship == null) {
+            Product product = productService.getById(productId);
+
+            relationship = new ProductRelationship();
+            relationship.setActive(true);
+            relationship.setCode(code);
+            relationship.setStore(store);
+            relationship.setRelatedProduct(product);
+
+            productRelationshipService.saveOrUpdate(relationship);
+
+            Map meta = getMeta(0, 200, "");
+            Map data = new HashMap();
+
+            responseMap.put("meta", meta);
+            responseMap.put("data", data);
+
+            setResponse(response, responseMap);
+
+        }
+        else {
+            responseMap = getErrorResponse(getMeta(400, 400, "Relationship already exists"));
+            setResponse(response, responseMap);
+        }
+
 
         return response;
 
     }
 
-    @RequestMapping(value = "/{store}/products/groups/remove-product", method = RequestMethod.POST)
+    @RequestMapping(value = "/{store}/products/groups/{code}/remove-product", method = RequestMethod.POST)
     @ResponseBody
-    public HttpServletResponse removeProduct(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    public HttpServletResponse removeProduct(@PathVariable String code, HttpServletRequest request, HttpServletResponse response) throws Exception {
 
-        String code = request.getParameter("code");
         Long productId = Long.valueOf(request.getParameter("productId"));
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
 
