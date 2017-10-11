@@ -392,7 +392,9 @@ public class ProductApiController extends BaseApiController {
 
     @RequestMapping(value = "/{store}/products/{productId}", method = RequestMethod.GET)
     @ResponseBody
-    public HttpServletResponse getProduct(@PathVariable Long productId, HttpServletRequest request, HttpServletResponse servletResponse) throws Exception {
+    public HttpServletResponse getProduct(@PathVariable Long productId,
+                                          HttpServletRequest request,
+                                          HttpServletResponse response) throws Exception {
 
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
@@ -411,7 +413,9 @@ public class ProductApiController extends BaseApiController {
             Product dbProduct = productService.getById(productId);
 
             if (dbProduct == null || dbProduct.getMerchantStore().getId().intValue() != store.getId().intValue()) {
-                return null;
+                responseMap = getErrorResponse(getMeta(404, 404, "Product Not Found"));
+                setResponse(response, responseMap);
+                return response;
             }
 
             product.setProduct(dbProduct);
@@ -523,8 +527,8 @@ public class ProductApiController extends BaseApiController {
         readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());*/
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableProduct);
-        setResponse(servletResponse, responseMap);
-        return servletResponse;
+        setResponse(response, responseMap);
+        return response;
     }
 
 
