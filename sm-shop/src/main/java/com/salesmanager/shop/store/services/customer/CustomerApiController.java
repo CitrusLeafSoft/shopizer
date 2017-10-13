@@ -11,7 +11,6 @@ import com.salesmanager.shop.model.customer.ReadableCustomer;
 import com.salesmanager.shop.populator.customer.ReadableCustomerPopulator;
 import com.salesmanager.shop.store.services.BaseApiController;
 import com.salesmanager.shop.utils.LabelUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
@@ -46,7 +45,7 @@ public class CustomerApiController extends BaseApiController{
                                             BindingResult result,
                                             HttpServletRequest request,
                                             HttpServletResponse servletResponse) throws Exception{
-
+//emailAddress, billing.telephone, billing.firstName, billing.lastName, billing.country.isoCode = IN, defaultLanguage.id = 1
 
         HashMap<String, Object> response = new HashMap<>();
 
@@ -55,9 +54,37 @@ public class CustomerApiController extends BaseApiController{
         Locale locale = Locale.ENGLISH;
 
         MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
+        Customer foundByTelephone = customerService.getByTelephone(customer.getBilling().getTelephone(), store.getId());
+        if(foundByTelephone != null) {
+            response.put("meta", getMeta(0, 201, ""));
+            Map entry = new HashMap();
+            entry.put("id", customer.getId());
+            entry.put("firstName", customer.getBilling().getFirstName() == null ? "" : customer.getBilling().getFirstName());
+            entry.put("lastName", customer.getBilling().getLastName() == null ? "" : customer.getBilling().getLastName());
+            entry.put("email", customer.getEmailAddress() == null ? "" : customer.getEmailAddress());
+            entry.put("country", customer.getBilling().getCountry().getIsoCode() == null ? "" : customer.getBilling().getCountry().getIsoCode());
+            //entry.put("shippingAddress", customer.getDelivery().getAddress());
+            entry.put("physicalAddress", customer.getBilling().getAddress() == null ? "" : customer.getBilling().getAddress());
+            entry.put("dateOfBirth", customer.getDateOfBirth() == null ? "" : customer.getDateOfBirth());
+            entry.put("gender", customer.getGender() == null ? "" : customer.getGender());
+            entry.put("postalcode", customer.getBilling().getPostalCode() == null ? "" : customer.getBilling().getPostalCode());
+
+
+            entry.put("phone", customer.getBilling().getTelephone() == null ? "" : customer.getBilling().getTelephone());
+            entry.put("telephone", customer.getBilling().getTelephone() == null ? "" : customer.getBilling().getTelephone());
+            entry.put("state", customer.getBilling().getState() == null ? "" : customer.getBilling().getState());
+            entry.put("city", customer.getBilling().getCity() == null ? "" : customer.getBilling().getCity());
+
+
+            response.put("data", entry);
+
+            setResponse(servletResponse, response);
+            return servletResponse;
+        }
 
         Customer newCustomer = new Customer();
 
+        //return existing customer
         if(customer.getId() != null && customer.getId()>=0) {
             newCustomer = customerService.getById(customer.getId());
             if(newCustomer == null) {
@@ -68,58 +95,6 @@ public class CustomerApiController extends BaseApiController{
         }
 
         newCustomer.setMerchantStore(store);
-
-
-        if(!StringUtils.isBlank(customer.getEmailAddress() ) ){
-            java.util.regex.Matcher matcher = pattern.matcher(customer.getEmailAddress());
-
-            if(!matcher.find()) {
-                ObjectError error = new ObjectError("customerEmailAddress",messages.getMessage("Email.customer.EmailAddress", locale));
-                result.addError(error);
-
-
-            }
-        }else{
-            ObjectError error = new ObjectError("customerEmailAddress",messages.getMessage("NotEmpty.customer.EmailAddress", locale));
-            result.addError(error);
-        }
-
-
-
-        if( StringUtils.isBlank(customer.getBilling().getFirstName() ) ){
-            ObjectError error = new ObjectError("billingFirstName", messages.getMessage("NotEmpty.customer.billingFirstName", locale));
-            result.addError(error);
-        }
-
-        if( StringUtils.isBlank(customer.getBilling().getLastName() ) ){
-            ObjectError error = new ObjectError("billingLastName", messages.getMessage("NotEmpty.customer.billingLastName", locale));
-            result.addError(error);
-        }
-
-        if( StringUtils.isBlank(customer.getBilling().getAddress() ) ){
-            ObjectError error = new ObjectError("billingAddress", messages.getMessage("NotEmpty.customer.billingStreetAddress", locale));
-            result.addError(error);
-        }
-
-        if( StringUtils.isBlank(customer.getBilling().getCity() ) ){
-            ObjectError error = new ObjectError("billingCity",messages.getMessage("NotEmpty.customer.billingCity", locale));
-            result.addError(error);
-        }
-
-        /*if( customer.getShowBillingStateList().equalsIgnoreCase("yes" ) && customer.getBilling().getZone().getCode() == null ){
-            ObjectError error = new ObjectError("billingState",messages.getMessage("NotEmpty.customer.billingState", locale));
-            result.addError(error);
-
-        }else if( customer.getShowBillingStateList().equalsIgnoreCase("no" ) && customer.getBilling().getState() == null ){
-            ObjectError error = new ObjectError("billingState",messages.getMessage("NotEmpty.customer.billingState", locale));
-            result.addError(error);
-
-        }*/
-
-        if( StringUtils.isBlank(customer.getBilling().getPostalCode() ) ){
-            ObjectError error = new ObjectError("billingPostalCode", messages.getMessage("NotEmpty.customer.billingPostCode", locale));
-            result.addError(error);
-        }
 
         //check if error from the @valid
         if (result.hasErrors()) {
@@ -139,42 +114,13 @@ public class CustomerApiController extends BaseApiController{
 
         newCustomer.setEmailAddress(customer.getEmailAddress() );
 
-        //get Customer country/zone
-        //Country deliveryCountry = countryService.getByCode( customer.getDelivery().getCountry().getIsoCode());
         Country billingCountry  = countryService.getByCode( customer.getBilling().getCountry().getIsoCode()) ;
-
-        //Zone deliveryZone = customer.getDelivery().getZone();
-       // Zone billingZone  = customer.getBilling().getZone();
-
-
-
-		/*if (customer.getShowDeliveryStateList().equalsIgnoreCase("yes" )) {
-			deliveryZone = zoneService.getByCode(customer.getDelivery().getZone().getCode());
-			customer.getDelivery().setState( null );
-
-		}else if (customer.getShowDeliveryStateList().equalsIgnoreCase("no" )){
-			deliveryZone = null ;
-			customer.getDelivery().setState( customer.getDelivery().getState() );
-		}
-
-		if (customer.getShowBillingStateList().equalsIgnoreCase("yes" )) {
-			billingZone = zoneService.getByCode(customer.getBilling().getZone().getCode());
-			customer.getBilling().setState( null );
-
-		}else if (customer.getShowBillingStateList().equalsIgnoreCase("no" )){
-			billingZone = null ;
-			customer.getBilling().setState( customer.getBilling().getState() );
-		}*/
-
 
 
         newCustomer.setDefaultLanguage(customer.getDefaultLanguage() );
 
-        /*customer.getDelivery().setZone(  deliveryZone);
-        customer.getDelivery().setCountry(deliveryCountry );*/
         newCustomer.setDelivery( customer.getDelivery() );
 
-        //customer.getBilling().setZone( billingZone);
         customer.getBilling().setCountry(billingCountry );
         newCustomer.setBilling( customer.getBilling()  );
 
@@ -195,7 +141,6 @@ public class CustomerApiController extends BaseApiController{
     @ResponseBody
     public HttpServletResponse getCustomers(HttpServletRequest request, HttpServletResponse servletResponse) throws Exception{
         HashMap<String, Object> responseMap = new HashMap<>();
-
 
         List<Customer> customers =
                 customerService.listByStore((MerchantStore) request.getAttribute(Constants.ADMIN_STORE));
