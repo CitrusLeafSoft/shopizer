@@ -107,7 +107,7 @@ public class ProductApiController extends BaseApiController {
 
         Product existingProduct = productService.getByCode(productWrapper.getProduct().getSku(), language);
 
-        if (existingProduct != null) {
+        if (productWrapper.getProduct().getId() == null && existingProduct != null) {
             setResponse(response, getErrorResponse(getMeta(400, 400, "SKU already exists")));
             return response;
         }

@@ -56,6 +56,7 @@ public class CustomerApiController extends BaseApiController{
         MerchantStore store = (MerchantStore)request.getAttribute(Constants.ADMIN_STORE);
         Customer foundByTelephone = customerService.getByTelephone(customer.getBilling().getTelephone(), store.getId());
         if(foundByTelephone != null) {
+            customer = foundByTelephone;
             response.put("meta", getMeta(0, 201, ""));
             Map entry = new HashMap();
             entry.put("id", customer.getId());
