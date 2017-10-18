@@ -1,5 +1,8 @@
 package com.salesmanager.shop.store.services.product;
 
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.salesmanager.core.business.services.catalog.category.CategoryService;
 import com.salesmanager.core.business.services.catalog.product.PricingService;
 import com.salesmanager.core.business.services.catalog.product.ProductService;
@@ -24,6 +27,7 @@ import com.salesmanager.core.model.catalog.product.relationship.ProductRelations
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.shop.admin.controller.products.ProductController;
+import com.salesmanager.shop.application.ShopApplication;
 import com.salesmanager.shop.constants.Constants;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
@@ -41,13 +45,12 @@ import org.springframework.stereotype.Controller;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.util.*;
 
@@ -130,57 +133,6 @@ public class ProductApiController extends BaseApiController {
                 ObjectError error = new ObjectError("dateAvailable", messages.getMessage("message.invalid.date", locale));
                 result.addError(error);
             }
-        }
-
-
-        //validate image
-        if (productWrapper.getImage() != null && !productWrapper.getImage().isEmpty()) {
-
-            try {
-
-                String maxHeight = configuration.getProperty("PRODUCT_IMAGE_MAX_HEIGHT_SIZE");
-                String maxWidth = configuration.getProperty("PRODUCT_IMAGE_MAX_WIDTH_SIZE");
-                String maxSize = configuration.getProperty("PRODUCT_IMAGE_MAX_SIZE");
-
-
-                BufferedImage image = ImageIO.read(productWrapper.getImage().getInputStream());
-
-
-                if (!StringUtils.isBlank(maxHeight)) {
-
-                    int maxImageHeight = Integer.parseInt(maxHeight);
-                    if (image.getHeight() > maxImageHeight) {
-                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.height", locale) + " {" + maxHeight + "}");
-                        result.addError(error);
-                    }
-
-                }
-
-                if (!StringUtils.isBlank(maxWidth)) {
-
-                    int maxImageWidth = Integer.parseInt(maxWidth);
-                    if (image.getWidth() > maxImageWidth) {
-                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.width", locale) + " {" + maxWidth + "}");
-                        result.addError(error);
-                    }
-
-                }
-
-                if (!StringUtils.isBlank(maxSize)) {
-
-                    int maxImageSize = Integer.parseInt(maxSize);
-                    if (productWrapper.getImage().getSize() > maxImageSize) {
-                        ObjectError error = new ObjectError("image", messages.getMessage("message.image.size", locale) + " {" + maxSize + "}");
-                        result.addError(error);
-                    }
-
-                }
-
-
-            } catch (Exception e) {
-                LOGGER.error("Cannot validate product image", e);
-            }
-
         }
 
 
@@ -317,19 +269,18 @@ public class ProductApiController extends BaseApiController {
 
         newProduct.setDescriptions(descriptions);
         productWrapper.setDateAvailable(DateUtil.formatDate(date));
-
+        ProductImage productImage = null;
 
         if (productWrapper.getImage() != null && !productWrapper.getImage().isEmpty()) {
 
 
             String imageName = productWrapper.getImage().getOriginalFilename();
 
+            productImage = new ProductImage();
 
-            ProductImage productImage = new ProductImage();
             productImage.setDefaultImage(true);
             productImage.setImage(productWrapper.getImage().getInputStream());
             productImage.setProductImage(imageName);
-
 
             List<ProductImageDescription> imagesDescriptions = new ArrayList<ProductImageDescription>();
 
@@ -352,6 +303,14 @@ public class ProductApiController extends BaseApiController {
             productWrapper.setProductImage(productImage);
         }
         try {
+            if(productImage != null) {
+                boolean uploadedToS3 = uploadImage(productWrapper.getImage());
+                if(uploadedToS3) {
+                    final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
+                            newProduct.getProductImage().getProductImage()).toString();
+                    newProduct.getProductImage().setProductImageUrl(url);
+                }
+            }
             productService.create(newProduct);
         } catch (Exception e) {
             e.printStackTrace();
@@ -382,6 +341,7 @@ public class ProductApiController extends BaseApiController {
         populator.setPricingService(pricingService);
         ReadableProduct readableProduct = new ReadableProduct();
         populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
+
 
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableProduct);
@@ -612,7 +572,7 @@ public class ProductApiController extends BaseApiController {
             ReadableProduct readableProduct = new ReadableProduct();
 
             if (plist != null) {
-
+                String url = "";
                 for (Product product : plist) {
                     populator.populate(product, readableProduct, store, store.getDefaultLanguage());
                     Map entry = new HashMap();
@@ -622,9 +582,15 @@ public class ProductApiController extends BaseApiController {
                     entry.put("available", readableProduct.isAvailable());
                     entry.put("quantity", readableProduct.getQuantity());
                     entry.put("price", readableProduct.getPrice());
+
+                    if(product.getProductImage() != null && product.getProductImage().getProductImageUrl() != null) {
+                        url = product.getProductImage().getProductImageUrl();
+                    }
+                    else {
+                        url = "";
+                    }
+                    entry.put("image", url);
                     productListResponse.add(entry);
-
-
                 }
 
             }
@@ -679,5 +645,26 @@ public class ProductApiController extends BaseApiController {
             return response;
         }
 
+    }
+
+    private boolean uploadImage(MultipartFile file){
+        try {
+
+            if (!file.isEmpty()) {
+                ObjectMetadata objectMetadata = new ObjectMetadata();
+                objectMetadata.setContentType(file.getContentType());
+                final PutObjectRequest putObjectRequest = new PutObjectRequest("shopizer-cl-2",
+                        file.getOriginalFilename(),
+                        file.getInputStream(),
+                        objectMetadata).
+                        withCannedAcl(CannedAccessControlList.PublicRead);
+                ShopApplication.amazonS3Client.putObject(putObjectRequest);
+                return true;
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        return false;
     }
 }
