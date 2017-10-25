@@ -91,18 +91,19 @@ public class ReadableProductPopulator extends
 				target.setRatingCount(source.getProductReviewCount().intValue());
 			}
 			if(description!=null) {
-				com.salesmanager.shop.model.catalog.product.ProductDescription tragetDescription = new com.salesmanager.shop.model.catalog.product.ProductDescription();
-				tragetDescription.setFriendlyUrl(description.getSeUrl());
-				tragetDescription.setName(description.getName());
+				com.salesmanager.shop.model.catalog.product.ProductDescription targetDescription = new com.salesmanager.shop.model.catalog.product.ProductDescription();
+				targetDescription.setFriendlyUrl(description.getSeUrl());
+				targetDescription.setName(description.getName());
 				if(!StringUtils.isBlank(description.getMetatagTitle())) {
-					tragetDescription.setTitle(description.getMetatagTitle());
+					targetDescription.setTitle(description.getMetatagTitle());
 				} else {
-					tragetDescription.setTitle(description.getName());
+					targetDescription.setTitle(description.getName());
 				}
-				tragetDescription.setMetaDescription(description.getMetatagDescription());
-				tragetDescription.setDescription(description.getDescription());
-				tragetDescription.setHighlights(description.getProductHighlight());
-				target.setDescription(tragetDescription);
+				targetDescription.setMetaDescription(description.getMetatagDescription());
+				targetDescription.setDescription(description.getDescription());
+				targetDescription.setId(description.getId());
+				targetDescription.setHighlights(description.getProductHighlight());
+				target.setDescription(targetDescription);
 			}
 			
 			if(source.getManufacturer()!=null && source.getManufacturer().getDescriptions().size()>0) {
