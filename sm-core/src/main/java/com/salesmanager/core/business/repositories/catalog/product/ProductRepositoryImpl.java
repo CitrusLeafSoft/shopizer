@@ -1,18 +1,5 @@
 package com.salesmanager.core.business.repositories.catalog.product;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
-
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-
 import com.salesmanager.core.business.constants.Constants;
 import com.salesmanager.core.model.catalog.product.Product;
 import com.salesmanager.core.model.catalog.product.ProductCriteria;
@@ -21,6 +8,13 @@ import com.salesmanager.core.model.catalog.product.attribute.AttributeCriteria;
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.core.model.tax.taxclass.TaxClass;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
+import java.util.*;
 
 
 public class ProductRepositoryImpl implements ProductRepositoryCustom {
@@ -552,6 +546,11 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
 			
 			countBuilderWhere.append(" and lower(p.sku) like :sku");
 		}
+
+        if(!StringUtils.isBlank(criteria.getRefSku())) {
+
+            countBuilderWhere.append(" and lower(p.refSku) like :refSku");
+        }
 		
 		if(!CollectionUtils.isEmpty(criteria.getAttributeCriteria())) {
 		
@@ -597,6 +596,10 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
 		
 		if(!StringUtils.isBlank(criteria.getCode())) {
 			countQ.setParameter("sku", new StringBuilder().append("%").append(criteria.getCode().toLowerCase()).append("%").toString());
+		}
+
+		if(!StringUtils.isBlank(criteria.getRefSku())) {
+			countQ.setParameter("refSku", new StringBuilder().append("%").append(criteria.getRefSku().toLowerCase()).append("%").toString());
 		}
 		
 		if(criteria.getManufacturerId()!=null) {
@@ -700,6 +703,10 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
 		if(!StringUtils.isBlank(criteria.getCode())) {
 			qs.append(" and lower(p.sku) like :sku");
 		}
+
+		if(!StringUtils.isBlank(criteria.getRefSku())) {
+			qs.append(" and lower(p.sku) like :refSku");
+		}
 		
 		if(!CollectionUtils.isEmpty(criteria.getAttributeCriteria())) {
 			int cnt = 0;
@@ -739,6 +746,10 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
 		
 		if(!StringUtils.isBlank(criteria.getCode())) {
 			q.setParameter("sku", new StringBuilder().append("%").append(criteria.getCode().toLowerCase()).append("%").toString());
+		}
+
+		if(!StringUtils.isBlank(criteria.getRefSku())) {
+			q.setParameter("refSku", new StringBuilder().append("%").append(criteria.getRefSku().toLowerCase()).append("%").toString());
 		}
 		
 		if(!CollectionUtils.isEmpty(criteria.getAttributeCriteria())) {

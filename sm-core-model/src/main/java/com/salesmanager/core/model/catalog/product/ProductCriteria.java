@@ -1,9 +1,9 @@
 package com.salesmanager.core.model.catalog.product;
 
-import java.util.List;
-
 import com.salesmanager.core.model.catalog.product.attribute.AttributeCriteria;
 import com.salesmanager.core.model.common.Criteria;
+
+import java.util.List;
 
 public class ProductCriteria extends Criteria {
 	
@@ -19,6 +19,7 @@ public class ProductCriteria extends Criteria {
 	private List<Long> productIds;
 	
 	private Long manufacturerId = null;
+	private String refSku = null;
 
 	public String getProductName() {
 		return productName;
@@ -78,5 +79,11 @@ public class ProductCriteria extends Criteria {
 	}
 
 
+	public String getRefSku() {
+		return refSku;
+	}
 
+	public void setRefSku(String refSku) {
+		this.refSku = refSku;
+	}
 }

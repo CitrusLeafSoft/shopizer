@@ -10,6 +10,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.SignatureException;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpHeaders;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
 import javax.inject.Inject;
@@ -26,8 +27,11 @@ public class ApiFilter extends HandlerInterceptorAdapter {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String storeCode = request.getParameter("storeCode");
-        if (storeCode == null || storeCode == "") {
+        String path = new AntPathMatcher().extractPathWithinPattern( "/api/**", request.getRequestURI() );
+        String storeCode = null;
+        try {
+            storeCode = path.split("/")[0];
+        }catch(NullPointerException e) {
             storeCode = MerchantStore.DEFAULT_STORE;
         }
 

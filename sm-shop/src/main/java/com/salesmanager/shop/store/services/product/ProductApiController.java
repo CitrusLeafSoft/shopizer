@@ -499,6 +499,7 @@ public class ProductApiController extends BaseApiController {
 
         String categoryId = request.getParameter("category_id");
         String sku = request.getParameter("sku");
+        String refSku = request.getParameter("reference_sku");
         String available = request.getParameter("available");
         //String searchTerm = request.getParameter("searchTerm");
         String name = request.getParameter("name");
@@ -550,6 +551,10 @@ public class ProductApiController extends BaseApiController {
 
             if (!StringUtils.isBlank(sku)) {
                 criteria.setCode(sku);
+            }
+
+            if (!StringUtils.isBlank(refSku)) {
+                criteria.setRefSku(refSku);
             }
 
             if (!StringUtils.isBlank(name)) {
