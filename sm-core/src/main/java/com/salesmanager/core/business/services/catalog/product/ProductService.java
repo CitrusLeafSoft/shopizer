@@ -1,8 +1,5 @@
 package com.salesmanager.core.business.services.catalog.product;
 
-import java.util.List;
-import java.util.Locale;
-
 import com.salesmanager.core.business.exception.ServiceException;
 import com.salesmanager.core.business.services.common.generic.SalesManagerEntityService;
 import com.salesmanager.core.model.catalog.category.Category;
@@ -13,6 +10,9 @@ import com.salesmanager.core.model.catalog.product.description.ProductDescriptio
 import com.salesmanager.core.model.merchant.MerchantStore;
 import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.core.model.tax.taxclass.TaxClass;
+
+import java.util.List;
+import java.util.Locale;
 
 
 
@@ -49,6 +49,9 @@ public interface ProductService extends SalesManagerEntityService<Long, Product>
 	 * @return
 	 */
 	Product getByCode(String productCode, Language language);
+
+	String getDiscount(Product product, MerchantStore store);
+	String getQuantity(Product product, MerchantStore store);
 
 	
 }

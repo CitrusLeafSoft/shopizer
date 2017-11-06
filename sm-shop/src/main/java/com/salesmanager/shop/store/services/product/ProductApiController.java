@@ -483,6 +483,27 @@ public class ProductApiController extends BaseApiController {
         ReadableProductPrice readableProductPrice = new ReadableProductPrice();
         pricePopulator.populate(product.getPrice(), readableProductPrice, store, store.getDefaultLanguage());
 
+        //TODO:
+        //1. Get quantity from PRODUCT_STORE_CL
+        //2. Update price based on discount given in PRODUCT_STORE_CL
+
+        final String quantity = productService.getQuantity(product.getProduct(), store);
+        final String discount = productService.getDiscount(product.getProduct(), store);
+
+        if(quantity != null) {
+            readableProduct.setQuantity(Integer.parseInt(quantity));
+        }
+        else {
+            readableProduct.setQuantity(0);
+        }
+
+        if(discount != null) {
+            final float originalPrice = Float.parseFloat(readableProductPrice.getOriginalPrice());
+            final float discountFloat = Float.parseFloat(discount);
+            final float finalPrice = (1- (discountFloat/100)) * originalPrice;
+            readableProduct.setFinalPrice(finalPrice + "");
+        }
+
         /*readableProduct.setOriginalPrice(readableProductPrice.getOriginalPrice());
         readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());*/
         responseMap.put("meta", getMeta(0, 200, ""));
