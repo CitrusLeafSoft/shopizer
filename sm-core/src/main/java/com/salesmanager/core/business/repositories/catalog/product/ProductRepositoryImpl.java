@@ -882,11 +882,14 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         Query query = em.createNativeQuery("SELECT DISCOUNT FROM PRODUCT_STORE_CL WHERE PRODUCT_ID = ? AND STORE_ID = ?");
         query.setParameter(1, product.getId());
         query.setParameter(2, store.getId());
-
-        float discount = (float)query.getSingleResult();
-        if(discount > 0) {
-            return discount + "";
+        try {
+            float discount = (float) query.getSingleResult();
+            if (discount > 0) {
+                return discount + "";
+            }
+        } catch (Exception ignored) {
         }
+
         return null;
     }
 
@@ -896,10 +899,14 @@ public class ProductRepositoryImpl implements ProductRepositoryCustom {
         query.setParameter(1, product.getId());
         query.setParameter(2, store.getId());
 
-        int count = (int)query.getSingleResult();
-        if(count > 0) {
-            return count + "";
+        try {
+            int count = (int) query.getSingleResult();
+            if (count > 0) {
+                return count + "";
+            }
+        } catch (Exception ignored) {
         }
+
         return null;
     }
 
