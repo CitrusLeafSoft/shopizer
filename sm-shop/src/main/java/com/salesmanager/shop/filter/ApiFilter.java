@@ -36,6 +36,11 @@ public class ApiFilter extends HandlerInterceptorAdapter {
         }
 
         MerchantStore store = merchantService.getByCode(storeCode);
+
+        if(store == null) {
+            store = merchantService.getByCode(MerchantStore.DEFAULT_STORE);
+        }
+
         request.getSession().setAttribute(Constants.ADMIN_STORE, store);
         request.setAttribute(Constants.ADMIN_STORE, store);
 
