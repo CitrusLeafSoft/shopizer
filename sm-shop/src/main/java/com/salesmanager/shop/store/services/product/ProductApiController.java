@@ -29,6 +29,7 @@ import com.salesmanager.core.model.reference.language.Language;
 import com.salesmanager.shop.admin.controller.products.ProductController;
 import com.salesmanager.shop.application.ShopApplication;
 import com.salesmanager.shop.constants.Constants;
+import com.salesmanager.shop.model.catalog.ReadableImage;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
 import com.salesmanager.shop.populator.catalog.ReadableProductPopulator;
@@ -301,13 +302,14 @@ public class ProductApiController extends BaseApiController {
 
             //product displayed
             productWrapper.setProductImage(productImage);
+
         }
         try {
             if(productImage != null) {
                 boolean uploadedToS3 = uploadImage(productWrapper.getImage());
                 if(uploadedToS3) {
                     final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
-                            newProduct.getProductImage().getProductImage()).toString();
+                            productWrapper.getProductImage().getProductImage()).toString();
                     newProduct.getProductImage().setProductImageUrl(url);
                 }
             }
@@ -341,6 +343,15 @@ public class ProductApiController extends BaseApiController {
         populator.setPricingService(pricingService);
         ReadableProduct readableProduct = new ReadableProduct();
         populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
+
+        ReadableImage readableImage = new ReadableImage();
+        String imageUrl = "";
+
+        if(newProduct.getProductImage() != null && newProduct.getProductImage().getProductImageUrl() != null) {
+            imageUrl = newProduct.getProductImage().getProductImageUrl();
+        }
+        readableImage.setImageUrl(imageUrl);
+        readableProduct.setImage(readableImage);
 
 
         responseMap.put("meta", getMeta(0, 200, ""));
@@ -497,12 +508,25 @@ public class ProductApiController extends BaseApiController {
             readableProduct.setQuantity(0);
         }
 
+        ReadableImage readableImage = new ReadableImage();
+        String imageUrl = "";
+
+        if(product.getProductImage() != null && product.getProductImage().getProductImageUrl() != null) {
+            imageUrl = product.getProductImage().getProductImageUrl();
+        }
+        else {
+            imageUrl = "";
+        }
+        readableImage.setImageUrl(imageUrl);
+        readableProduct.setImage(readableImage);
+
         if(discount != null) {
             final float originalPrice = Float.parseFloat(readableProductPrice.getOriginalPrice());
             final float discountFloat = Float.parseFloat(discount);
             final float finalPrice = (1- (discountFloat/100)) * originalPrice;
             readableProduct.setFinalPrice(finalPrice + "");
         }
+
 
         /*readableProduct.setOriginalPrice(readableProductPrice.getOriginalPrice());
         readableProduct.setFinalPrice(readableProductPrice.getFinalPrice());*/
