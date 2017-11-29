@@ -314,6 +314,11 @@ public class ProductApiController extends BaseApiController {
                 }
             }
             productService.create(newProduct);
+            long categoryId = Long.parseLong(request.getParameter("category_id"));
+            Category category = categoryService.getById(categoryId);
+            newProduct.getCategories().add(category);
+
+            productService.update(newProduct);
         } catch (Exception e) {
             e.printStackTrace();
         }

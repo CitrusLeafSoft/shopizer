@@ -172,6 +172,7 @@ public class CategoryApiController extends BaseApiController{
         response.put("meta", getMeta(0, 201, ""));
         HashMap<String, Object> categoryData = new HashMap<>();
         categoryData.put("id", category.getId());
+        categoryData.put("name", category.getDescription().getName());
 
         response.put("data", categoryData);
         setResponse(servletResponse, response);
