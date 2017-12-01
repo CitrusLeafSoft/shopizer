@@ -350,12 +350,11 @@ public class ProductApiController extends BaseApiController {
         populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
 
         ReadableImage readableImage = new ReadableImage();
-        String imageUrl = "";
+        final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
+                newProduct.getProductImage().getProductImage()).toString();
 
-        if(newProduct.getProductImage() != null && newProduct.getProductImage().getProductImageUrl() != null) {
-            imageUrl = newProduct.getProductImage().getProductImageUrl();
-        }
-        readableImage.setImageUrl(imageUrl);
+
+        readableImage.setImageUrl(url);
         readableProduct.setImage(readableImage);
 
 
@@ -514,15 +513,17 @@ public class ProductApiController extends BaseApiController {
         }
 
         ReadableImage readableImage = new ReadableImage();
-        String imageUrl = "";
 
-        if(product.getProductImage() != null && product.getProductImage().getProductImageUrl() != null) {
+        final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
+                product.getProductImage().getProductImage()).toString();
+
+        /*if(product.getProductImage() != null && product.getProductImage().getProductImageUrl() != null) {
             imageUrl = product.getProductImage().getProductImageUrl();
         }
         else {
             imageUrl = "";
-        }
-        readableImage.setImageUrl(imageUrl);
+        }*/
+        readableImage.setImageUrl(url);
         readableProduct.setImage(readableImage);
 
         if(discount != null) {
