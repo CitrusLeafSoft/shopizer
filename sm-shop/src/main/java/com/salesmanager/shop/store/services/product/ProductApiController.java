@@ -30,8 +30,10 @@ import com.salesmanager.shop.admin.controller.products.ProductController;
 import com.salesmanager.shop.application.ShopApplication;
 import com.salesmanager.shop.constants.Constants;
 import com.salesmanager.shop.model.catalog.ReadableImage;
+import com.salesmanager.shop.model.catalog.category.ReadableCategory;
 import com.salesmanager.shop.model.catalog.product.ReadableProduct;
 import com.salesmanager.shop.model.catalog.product.ReadableProductPrice;
+import com.salesmanager.shop.populator.catalog.ReadableCategoryPopulator;
 import com.salesmanager.shop.populator.catalog.ReadableProductPopulator;
 import com.salesmanager.shop.populator.catalog.ReadableProductPricePopulator;
 import com.salesmanager.shop.store.services.BaseApiController;
@@ -106,7 +108,7 @@ public class ProductApiController extends BaseApiController {
         HashMap<String, Object> responseMap = new HashMap<>();
         MerchantStore store = (MerchantStore) request.getAttribute(Constants.ADMIN_STORE);
         Language language = (Language) request.getAttribute(Constants.LANGUAGE);
-
+        ReadableCategory readableCategory=null;
         List<Language> languages = store.getLanguages();
 
         Product existingProduct = productService.getByCode(productWrapper.getProduct().getSku(), language);
@@ -317,7 +319,10 @@ public class ProductApiController extends BaseApiController {
             long categoryId = Long.parseLong(request.getParameter("category_id"));
             Category category = categoryService.getById(categoryId);
             newProduct.getCategories().add(category);
-
+            readableCategory = new ReadableCategory();
+            ReadableCategoryPopulator readableCategoryPopulator = new ReadableCategoryPopulator();
+            readableCategoryPopulator.populate(category,readableCategory,store,store.getDefaultLanguage());
+            //readableCategory.setId(categoryId);
             productService.update(newProduct);
         } catch (Exception e) {
             e.printStackTrace();
@@ -356,7 +361,8 @@ public class ProductApiController extends BaseApiController {
 
         readableImage.setImageUrl(url);
         readableProduct.setImage(readableImage);
-
+        if(readableCategory!=null)
+            readableProduct.setReadableCategory(readableCategory);
 
         responseMap.put("meta", getMeta(0, 200, ""));
         responseMap.put("data", readableProduct);
