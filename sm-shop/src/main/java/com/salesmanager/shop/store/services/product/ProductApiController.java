@@ -355,9 +355,15 @@ public class ProductApiController extends BaseApiController {
         populator.populate(newProduct, readableProduct, store, store.getDefaultLanguage());
 
         ReadableImage readableImage = new ReadableImage();
-        final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
-                newProduct.getProductImage().getProductImage()).toString();
-
+        String url = "";
+        ProductImage defaultImage = newProduct.getProductImage();
+        if(defaultImage != null) {
+            url = defaultImage.getProductImageUrl();
+        }
+        else {
+            url  = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
+                    newProduct.getProductImage().getProductImage()).toString();
+        }
 
         readableImage.setImageUrl(url);
         readableProduct.setImage(readableImage);
@@ -520,8 +526,17 @@ public class ProductApiController extends BaseApiController {
 
         ReadableImage readableImage = new ReadableImage();
 
-        final String url = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
-                product.getProductImage().getProductImage()).toString();
+        ProductImage defaultImage = product.getProductImage();
+        String url = "";
+        if(defaultImage != null) {
+            url = defaultImage.getProductImageUrl();
+        }
+        else {
+            url  = ShopApplication.amazonS3Client.getUrl("shopizer-cl-2",
+                    product.getProductImage().getProductImage()).toString();
+        }
+
+        if(url.contains("static")) url = "";
 
         /*if(product.getProductImage() != null && product.getProductImage().getProductImageUrl() != null) {
             imageUrl = product.getProductImage().getProductImageUrl();
